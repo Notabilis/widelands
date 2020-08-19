@@ -541,8 +541,12 @@ struct HostParticipantProvider : public ParticipantList {
 						printf("number=%i ", p->player_number());
 						printf("team=%i ", p->team_number());
 						printf("ai=%s ", p->get_ai().c_str());
-						printf("defeated=%i\n", p->is_defeated());
-								// RGBColor& get_playercolor
+						if (!p->get_ai().empty()) {
+							// Print a pretty ai name
+							printf("ai_pretty=%s ", ComputerPlayer::get_implementation(p->get_ai())->descname.c_str());
+						}
+						printf("defeated=%i ", p->is_defeated());
+						printf("color=%s\n", p->get_playercolor().hex_value().c_str());
 					}
 				}
 			}
