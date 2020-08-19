@@ -53,6 +53,7 @@
 #include "network/network_lan_promotion.h"
 #include "network/network_player_settings_backend.h"
 #include "network/network_protocol.h"
+#include "network/participantlist.h"
 #include "ui_basic/progresswindow.h"
 #include "ui_fsmenu/launch_mpg.h"
 #include "wlapplication.h"
@@ -221,7 +222,8 @@ private:
 };
 
 struct HostChatProvider : public ChatProvider {
-	explicit HostChatProvider(GameHost* const init_host) : h(init_host), kickClient(0) {
+	explicit HostChatProvider(GameHost* const init_host)
+		: h(init_host), kickClient(0) {
 	}
 
 	// TODO(k.halfmann): this deserves a refactoring
@@ -410,6 +412,8 @@ private:
 struct Client {
 	NetHostInterface::ConnectionId sock_id;
 	uint8_t playernum;
+	// TODO(Notabilis): usernum is int16_t while UserSettings::position is uint8_t.
+	//                  Should this be the same data type?
 	int16_t usernum;
 	std::string build_id;
 	Md5Checksum syncreport;
@@ -423,10 +427,14 @@ struct Client {
 	time_t lastdelta;
 };
 
+struct HostParticipantProvider;
+
 struct GameHostImpl {
 	GameSettings settings;
 	std::string localplayername;
 	uint32_t localdesiredspeed;
+	// unique_ptr instead of object to break cyclic dependency
+	std::unique_ptr<ParticipantList> participants;
 	HostChatProvider chat;
 	HostGameSettingsProvider hp;
 	NetworkPlayerSettingsBackend npsb;
@@ -475,6 +483,7 @@ struct GameHostImpl {
 
 	explicit GameHostImpl(GameHost* const h)
 	   : localdesiredspeed(0),
+	     participants(nullptr),
 	     chat(h),
 	     hp(h),
 	     npsb(&hp),
@@ -493,6 +502,187 @@ struct GameHostImpl {
 	     syncreport(),
 	     syncreport_arrived(false) {
 	}
+
+	/// Takes ownership of the given pointer
+	void set_participant_list(ParticipantList* p) {
+		participants.reset(p);
+		chat.participants_ = p;
+	}
+};
+
+struct HostParticipantProvider : public ParticipantList {
+	explicit HostParticipantProvider(GameHost* const init_host, GameHostImpl* const init_impl)
+		: h(init_host), d(init_impl) {
+	}
+
+	/**
+	 * Returns the number of currently connected participants.
+	 * Return value - 1 is the highest permitted participant number for the other methods.
+	 * @return The number of connected participants.
+	 */
+	virtual int16_t get_participant_count() const {
+
+		{
+			// Some of these might not be available when the game hasn't been started yet
+			if (d && d->game && d->game->player_manager()) {
+				Widelands::PlayersManager *pm = d->game->player_manager();
+				int n = pm->get_number_of_players();
+				printf("%i Players:\n", n);
+				int found = 0;
+				for (uint8_t i = 1; found < n; ++i) {
+					assert(i <= kMaxPlayers);
+					Widelands::Player *p = pm->get_player(i);
+					printf("%i. ", i);
+					if (p == nullptr) {
+						printf(" UNUSED\n");
+					} else {
+						++found;
+						printf("_%s_ ", p->get_name().c_str());
+						printf("number=%i ", p->player_number());
+						printf("team=%i ", p->team_number());
+						printf("ai=%s ", p->get_ai().c_str());
+						printf("defeated=%i\n", p->is_defeated());
+								// RGBColor& get_playercolor
+					}
+				}
+			}
+
+			int n = d->settings.users.size();
+			printf("%i Users:\n", n);
+			for (uint8_t i = 0; i < n; ++i) {
+				printf("%i. %s position=%i observer=%i active=%i\n",
+						i, d->settings.users[i].name.c_str(), d->settings.users[i].position,
+						(d->settings.users[i].position == UserSettings::none()),
+						(d->settings.users[i].position != UserSettings::not_connected()));
+						// .position is the index within d->settings.players and also
+						// as .position+1 the index inside d->game->player_manager()
+						if (d->settings.users[i].position != UserSettings::not_connected()
+							&& d->settings.users[i].position <= UserSettings::highest_playernum()) {
+							// We have an active player
+							printf("  PlayerSettings:\n");
+							const PlayerSettings& ps = d->settings.players.at(d->settings.users[i].position);
+                            switch (ps.state) {
+								case PlayerSettings::State::kOpen:
+									printf("  State: kOpen\n");
+									break;
+								case PlayerSettings::State::kHuman:
+									printf("  State: kHuman\n");
+									break;
+								case PlayerSettings::State::kComputer:
+									printf("  State: kComputer\n");
+									break;
+								case PlayerSettings::State::kClosed:
+									printf("  State: kClosed\n");
+									break;
+								case PlayerSettings::State::kShared:
+									printf("  State: kShared\n");
+									break;
+                            }
+                            printf("  init_index: %u\n", ps.initialization_index);
+                            printf("  Name: %s\n", ps.name.c_str());
+                            printf("  Tribe: %s\n", ps.tribe.c_str());
+                            printf("  Ai: %s\n", ps.ai.c_str());
+                            printf("  Team: %i\n", ps.team);
+                            printf("  Closeable: %i\n", ps.closeable);
+                            printf("  Shared by: %i\n", ps.shared_in);
+						}
+			}
+
+			printf("%lu AIs\n", d->computerplayers.size());
+			for (size_t i = 0; i < d->computerplayers.size(); ++i) {
+				// Playernumber seems to be the one from the players list. Great!
+				printf("%lu. has player number %i\n", i, d->computerplayers[i]->player_number());
+			}
+		}
+
+// TODO(Notabilis): Bug: Changing anything in the multiplayer lobby resets the "shared-in" setting
+
+		// Number of connected humans
+		int16_t n = d->settings.users.size();
+		// Number of AIs
+		n += d->computerplayers.size();
+		printf("humans = %lu, AIs = %lu\n", d->settings.users.size(), d->computerplayers.size());
+		return n;
+	}
+
+	/**
+	 * Returns the type of participant.
+	 * @param participant The number of the participant get data about.
+	 * @return The type of participant.
+	 */
+	virtual ParticipantType get_participant_type(int16_t participant) const {
+		// NOCOM
+		return ParticipantType::kPlayer;
+	}
+
+	/**
+	 * Returns the team of the participant when the participant is a player.
+	 * A value of \c 0 indicates that the participant has no team.
+	 * For observers, the result is undefined.
+	 * @param participant The number of the participant to get data about.
+	 * @return The team of player used by the participant.
+	 */
+	virtual Widelands::TeamNumber get_participant_team(int16_t participant) const {
+		// NOCOM
+		return 0;
+	}
+
+	/**
+	 * Returns the name of the participant.
+	 * This is the name the participant provided when connecting to the server.
+	 * The name is also used to display chat messages by this participant.
+	 * For AIs this is a descriptiv name of the AI.
+	 * @param participant The number of the participant get data about.
+	 * @return The name of the participant.
+	 */
+	virtual const std::string& get_participant_name(int16_t participant) const {
+		//if (participant < d->settings.users.size()) {
+			// It is a user, get its name
+
+		//}
+		// Its an AI, get its description
+//		n += d->computerplayers.size();
+		return "";
+	}
+
+	/**
+	 * Returns the status of the player used by the participant.
+	 * This describes whether the participant is still playing or is already defeated.
+	 * For observers, the result is undefined.
+	 * @param participant The number of the participant get data about.
+	 * @return The player status of the participant.
+	 */
+	virtual const std::string& get_participant_status(int16_t participant) const {
+		// NOCOM
+		return "";
+	}
+
+	/**
+	 * Returns the ping time of the participant.
+	 * Returned is the time that it took the client to return a PING request by the network
+	 * relay.
+	 * For AI participant the result is undefined.
+	 * In network games that don't use the network relay the result is undefined.
+	 * @param participant The number of the participant get data about.
+	 * @return The RTT in milliseconds for this participant up to 255ms.
+	 */
+	// TODO(Notabilis): Add support for LAN games
+	virtual uint8_t get_participant_ping(int16_t participant) const {
+		// NOCOM
+		return 0;
+	}
+
+	/// Called when the data was updated and should be re-fetched and redrawn
+	//boost::signals2::signal<void()> participants_updated;
+	/**
+	 * Called when the RTT for a participant changed.
+	 * Passed parameters are the participant number and the new RTT.
+	 */
+	//boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
+
+private:
+	GameHost* h;
+	GameHostImpl* d;
 };
 
 GameHost::GameHost(const std::string& playername, bool internet)
@@ -500,6 +690,7 @@ GameHost::GameHost(const std::string& playername, bool internet)
 	log("[Host]: starting up.\n");
 
 	d->localplayername = playername;
+	d->set_participant_list(new HostParticipantProvider(this, d));
 
 	// create a listening socket
 	if (internet) {

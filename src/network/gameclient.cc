@@ -56,6 +56,7 @@
 #include "wui/interactive_spectator.h"
 
 struct GameClientImpl {
+/// TODO: Add support for ParticipantList and set it in the ChatProvider
 	bool internet_;
 
 	GameSettings settings;

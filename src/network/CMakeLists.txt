@@ -34,6 +34,7 @@ wl_library(network
     network_player_settings_backend.h
     network_protocol.h
     relay_protocol.h
+    participantlist.h
   USES_SDL2
   DEPENDS
     ai

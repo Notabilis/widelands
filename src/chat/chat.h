@@ -27,6 +27,8 @@
 #include "notifications/note_ids.h"
 #include "notifications/notifications.h"
 
+class ParticipantList;
+
 // A chat message as received in game.
 struct ChatMessage {
 	CAN_BE_SENT_AS_NOTE(NoteId::ChatMessage)
@@ -62,6 +64,7 @@ struct ChatMessage {
 // Base classes must broadcast a ChatMessage as notification when a
 // new message is received.
 struct ChatProvider {
+	//ChatProvider(ParticipantList* participants) : participants_(participants) { }
 	virtual ~ChatProvider();
 
 	// Send the given chat message. The message may or may not
@@ -85,6 +88,9 @@ struct ChatProvider {
 	virtual bool has_been_set() const {
 		return false;
 	}
+
+	// Access to user list to chat with. Might be nullptr
+	ParticipantList* participants_ = nullptr;
 };
 
 #endif  // end of include guard:

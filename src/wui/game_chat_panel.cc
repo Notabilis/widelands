@@ -21,6 +21,7 @@
 
 #include <SDL_mouse.h>
 
+#include "network/participantlist.h"
 #include "sound/sound_handler.h"
 #include "wui/chat_msg_layout.h"
 
@@ -105,6 +106,17 @@ void GameChatPanel::unfocus_edit() {
 }
 
 void GameChatPanel::key_enter() {
+
+
+	if (chat_.participants_ != nullptr) {
+		int16_t n = chat_.participants_->get_participant_count();
+		printf("#participants: %i\n", n);
+		//for (auto i = 0; i < n; ++i) {
+			//printf("Name %i: %s\n", i, chat_.participants_->get_participant_name(i).c_str());
+		//}
+	}
+
+
 	const std::string& str = editbox.text();
 
 	if (str.size()) {

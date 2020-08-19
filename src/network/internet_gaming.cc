@@ -40,6 +40,7 @@
 /// will ensure
 /// that only one instance is running at time.
 InternetGaming::InternetGaming()
+/// TODO: Add support for ParticipantList and set it in the ChatProvider
    : net(nullptr),
      state_(OFFLINE),
      reg_(false),
