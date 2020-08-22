@@ -609,6 +609,7 @@ struct HostParticipantProvider : public ParticipantList {
 	}
 
 	virtual ParticipantType get_participant_type(int16_t participant) const {
+		assert(is_ingame());
 		assert(participant < get_participant_count());
 		if (participant >= static_cast<int16_t>(d->settings.users.size())) {
 			return ParticipantType::kAI;
@@ -620,6 +621,7 @@ struct HostParticipantProvider : public ParticipantList {
 	}
 
 	virtual Widelands::TeamNumber get_participant_team(int16_t participant) const {
+		assert(is_ingame());
 		return participant_to_player(participant)->team_number();
 	}
 
@@ -654,11 +656,17 @@ struct HostParticipantProvider : public ParticipantList {
 	 * @return The player status of the participant.
 	 */
 	virtual bool get_participant_defeated(int16_t participant) const {
+		assert(is_ingame());
 		return participant_to_player(participant)->is_defeated();
 	}
 
 	virtual const RGBColor& get_participant_color(int16_t participant) const {
+		assert(is_ingame());
 		return participant_to_player(participant)->get_playercolor();
+	}
+
+	virtual bool is_ingame() const {
+		return (d->game != nullptr);
 	}
 
 	/**
@@ -672,6 +680,7 @@ struct HostParticipantProvider : public ParticipantList {
 	 */
 	// TODO(Notabilis): Add support for LAN games
 	virtual uint8_t get_participant_ping(int16_t participant) const {
+		assert(is_ingame());
 		assert(participant < get_participant_count());
 		// TODO(Notabilis): Implement this function ... and all the Ping-stuff that belongs to it
 		return 0;

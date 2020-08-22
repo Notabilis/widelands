@@ -57,6 +57,7 @@ public:
 
 	/**
 	 * Returns the type of participant.
+	 * @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant get data about.
 	 * @return The type of participant.
 	 */
@@ -66,6 +67,7 @@ public:
 	 * Returns the team of the participant when the participant is a player.
 	 * A value of \c 0 indicates that the participant has no team.
 	 * For observers, the result is undefined.
+	 * @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant to get data about.
 	 * @return The team of player used by the participant.
 	 */
@@ -91,12 +93,26 @@ public:
 	/**
 	 * Returns whether the player used by the participant is defeated or still playing.
 	 * For observers, the result is undefined.
+	 * @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant get data about.
 	 * @return Whether the participant has been defeated.
 	 */
 	virtual bool get_participant_defeated(int16_t participant) const = 0;
 
+	/**
+	 * Returns the color of the player used by the participant.
+	 * For observers, the result is undefined.
+	 * @warning Result is undefined when not ingame.
+	 * @param participant The number of the participant get data about.
+	 * @return The playercolor.
+	 */
 	virtual const RGBColor& get_participant_color(int16_t participant) const = 0;
+
+	/**
+	 * Returns whether a game is currently running.
+	 * @return Whether a game is running.
+	 */
+	virtual bool is_ingame() const = 0;
 
 	/**
 	 * Returns the ping time of the participant.
@@ -104,6 +120,7 @@ public:
 	 * relay.
 	 * For AI participant the result is undefined.
 	 * In network games that don't use the network relay the result is undefined.
+	 * @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant get data about.
 	 * @return The RTT in milliseconds for this participant up to 255ms.
 	 */
