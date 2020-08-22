@@ -22,6 +22,7 @@
 #include <SDL_mouse.h>
 
 #include "base/i18n.h"
+#include "graphic/playercolor.h"
 #include "network/participantlist.h"
 #include "sound/sound_handler.h"
 #include "wui/chat_msg_layout.h"
@@ -67,6 +68,8 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 	editbox.activate_history(true);
 	recipient_dropdown_.selected.connect([this]() { set_recipient(); });
 
+	// TODO: The selection of the dropdown is reset everytime the chat is re-opened. Store it
+	// Probably a TODO: Refreshing the recipient list even while the window stays open will reset the selection
 	set_handle_mouse(true);
 	set_can_focus(true);
 
@@ -209,21 +212,26 @@ void GameChatPanel::prepare_recipients() {
 
 
 	// Iterate over all human players (except ourselves) and add their names
-	// TODO: Maybe add flag/observer-icon after all...
 	int16_t n_participants = chat_.participants_->get_participant_count();
 	const std::string& local_name = chat_.participants_->get_local_playername();
 
 	for (auto i = 0; i < n_participants; ++i) {
-		// We have to check for ingame because otherweise get_participant_type() isn't supported
-		if (chat_.participants_->is_ingame() &&
-			chat_.participants_->get_participant_type(i) == ParticipantList::ParticipantType::kAI) {
+		if (chat_.participants_->get_participant_type(i) == ParticipantList::ParticipantType::kAI) {
 			// Skip AIs
 			continue;
 		}
 		const std::string& name = chat_.participants_->get_participant_name(i);
 		if (name != local_name) {
-			recipient_dropdown_.add(name, "@" + name + " ",
-				g_gr->images().get("images/wui/fieldaction/menu_tab_watch.png"));
+
+			if (chat_.participants_->get_participant_type(i)
+				== ParticipantList::ParticipantType::kObserver) {
+				recipient_dropdown_.add(name, "@" + name + " ",
+					g_gr->images().get("images/wui/fieldaction/menu_tab_watch.png"));
+			} else {
+				recipient_dropdown_.add(name, "@" + name + " ",
+					playercolor_image(chat_.participants_->get_participant_color(i),
+						"images/players/genstats_player.png"));
+			}
 		}
 	}
 }

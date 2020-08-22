@@ -610,7 +610,6 @@ struct HostParticipantProvider : public ParticipantList {
 	}
 
 	virtual ParticipantType get_participant_type(int16_t participant) const {
-		assert(is_ingame());
 		assert(participant < get_participant_count());
 		if (participant >= static_cast<int16_t>(d->settings.users.size())) {
 			return ParticipantType::kAI;
@@ -662,8 +661,9 @@ struct HostParticipantProvider : public ParticipantList {
 	}
 
 	virtual const RGBColor& get_participant_color(int16_t participant) const {
-		assert(is_ingame());
-		return participant_to_player(participant)->get_playercolor();
+		assert(get_participant_type(participant) != ParticipantType::kObserver);
+		// Partially copied code from Player class, but this way also works in lobby
+		return kPlayerColors[participant_to_playerindex(participant) - 1];
 	}
 
 	virtual bool is_ingame() const {
@@ -696,19 +696,13 @@ struct HostParticipantProvider : public ParticipantList {
 	//boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
 
 private:
-	const Widelands::Player* participant_to_player(int16_t participant) const {
-		assert(participant < get_participant_count());
-		assert(d);
-		assert(d->game);
-		const Widelands::PlayersManager *pm = d->game->player_manager();
-		assert(pm);
-		const Widelands::Player *p = nullptr;
+	int32_t participant_to_playerindex(int16_t participant) const {
 		if (participant >= static_cast<int16_t>(d->settings.users.size())) {
 			// AI
 			participant -= d->settings.users.size();
 //printf("bbb %i %i %i\n", participant, d->computerplayers[participant]->player_number(), pm->get_number_of_players());
 //assert(d->computerplayers[participant]->player_number() <= pm->get_number_of_players());
-			p = pm->get_player(d->computerplayers[participant]->player_number());
+			return d->computerplayers[participant]->player_number();
 		} else {
 			// No useful result possible for observers or semi-connected users
 			assert(d->settings.users[participant].position <= UserSettings::highest_playernum());
@@ -716,8 +710,19 @@ private:
 // Useless, vector has always max size: assert(d->settings.users[participant].position <= pm->get_number_of_players());
 			// .position is the index within d->settings.players and also
 			// as .position+1 the index inside d->game->player_manager()
-			p = pm->get_player(d->settings.users[participant].position + 1);
+			return d->settings.users[participant].position + 1;
 		}
+	}
+
+	const Widelands::Player* participant_to_player(int16_t participant) const {
+		assert(participant < get_participant_count());
+		assert(d);
+		assert(d->game);
+		const Widelands::PlayersManager *pm = d->game->player_manager();
+		assert(pm);
+		const int32_t playerindex = participant_to_playerindex(participant);
+		assert(playerindex > 0);
+		const Widelands::Player *p = pm->get_player(playerindex);
 		assert(p);
 		return p;
 	}

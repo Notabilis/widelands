@@ -23,6 +23,7 @@
 #include <memory>
 
 #include "chat/chat.h"
+#include "ui_basic/dropdown.h"
 #include "ui_basic/editbox.h"
 #include "ui_basic/multilinetextarea.h"
 
@@ -60,12 +61,15 @@ private:
 	void recalculate(bool has_new_message = false);
 	void key_enter();
 	void key_escape();
+	void set_recipient();
+	void prepare_recipients();
 
 	ChatProvider& chat_;
 	UI::MultilineTextarea chatbox;
 	UI::EditBox editbox;
 	size_t chat_message_counter;
 	FxId chat_sound;
+	UI::Dropdown<std::string> recipient_dropdown_;
 	std::unique_ptr<Notifications::Subscriber<ChatMessage>> chat_message_subscriber_;
 };
 
