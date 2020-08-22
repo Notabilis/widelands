@@ -228,6 +228,7 @@ struct HostChatProvider : public ChatProvider {
 
 	// TODO(k.halfmann): this deserves a refactoring
 	void send(const std::string& msg) override {
+printf("ChatProvider::send(): %s\n", msg.c_str());
 		ChatMessage c(msg);
 		c.playern = h->get_local_playerposition();
 		c.sender = h->get_local_playername();

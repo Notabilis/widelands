@@ -21,6 +21,7 @@
 
 #include <SDL_mouse.h>
 
+#include "base/i18n.h"
 #include "network/participantlist.h"
 #include "sound/sound_handler.h"
 #include "wui/chat_msg_layout.h"
@@ -29,33 +30,47 @@
  * Create a game chat panel
  */
 GameChatPanel::GameChatPanel(UI::Panel* parent,
-                             int32_t const x,
-                             int32_t const y,
-                             uint32_t const w,
-                             uint32_t const h,
-                             ChatProvider& chat,
-                             UI::PanelStyle style)
-   : UI::Panel(parent, x, y, w, h),
-     chat_(chat),
-     chatbox(this,
-             0,
-             0,
-             w,
-             h - 30,
-             style,
-             "",
-             UI::Align::kLeft,
-             UI::MultilineTextarea::ScrollMode::kScrollLogForced),
-     editbox(this, 0, h - 25, w, style),
-     chat_message_counter(0),
-     chat_sound(SoundHandler::register_fx(SoundType::kChat, "sound/lobby_chat")) {
+								int32_t const x,
+								int32_t const y,
+								uint32_t const w,
+								uint32_t const h,
+								ChatProvider& chat,
+								UI::PanelStyle style)
+	: UI::Panel(parent, x, y, w, h),
+		chat_(chat),
+		chatbox(this,
+			0,
+			0,
+			w,
+			h - 30,
+			style,
+			"",
+			UI::Align::kLeft,
+			UI::MultilineTextarea::ScrollMode::kScrollLogForced),
+		editbox(this, 28, h - 25, w - 28, style),
+		chat_message_counter(0),
+		chat_sound(SoundHandler::register_fx(SoundType::kChat, "sound/lobby_chat")),
+		recipient_dropdown_(this,
+			"chat_recipient_dropdown",
+			0,
+			h - 25,
+			25,
+			16,
+			25,
+			_("Recipient"),
+			UI::DropdownType::kPictorial,
+			UI::PanelStyle::kFsMenu,
+			UI::ButtonStyle::kFsMenuSecondary) {
 
 	editbox.ok.connect([this]() { key_enter(); });
 	editbox.cancel.connect([this]() { key_escape(); });
 	editbox.activate_history(true);
+	recipient_dropdown_.selected.connect([this]() { set_recipient(); });
 
 	set_handle_mouse(true);
 	set_can_focus(true);
+
+	prepare_recipients();
 
 	chat_message_subscriber_ =
 	   Notifications::subscribe<ChatMessage>([this](const ChatMessage&) { recalculate(true); });
@@ -135,7 +150,8 @@ void GameChatPanel::key_enter() {
 						);
 				}
 			}
-		} else {printf("#\tName\n");
+		} else {
+			printf("#\tName\n");
 			for (auto i = 0; i < n; ++i) {
 				printf("%i.\t%s\n", i, chat_.participants_->get_participant_name(i).c_str());
 			}
@@ -146,7 +162,14 @@ void GameChatPanel::key_enter() {
 	const std::string& str = editbox.text();
 
 	if (str.size()) {
-		chat_.send(str);
+		assert(recipient_dropdown_.has_selection());
+		// Only prepend dropdown selection if no "@" or "/" is present
+		if (str[0] != '@' && str[0] != '/') {
+			chat_.send(recipient_dropdown_.get_selected() + str);
+		} else {
+			// It already is a whisper or an admin command. Don't add the recipient
+			chat_.send(recipient_dropdown_.get_selected() + str);
+		}
 	}
 
 	editbox.set_text("");
@@ -156,6 +179,53 @@ void GameChatPanel::key_enter() {
 void GameChatPanel::key_escape() {
 	editbox.set_text("");
 	aborted();
+}
+
+void GameChatPanel::set_recipient() {
+	assert(recipient_dropdown_.has_selection());
+	printf("Selected _%s_ in dropdown\n", recipient_dropdown_.get_selected().c_str());
+	// Something has been selected. Re-focus the input box
+	editbox.focus();
+}
+
+void GameChatPanel::prepare_recipients() {
+	if (chat_.participants_ == nullptr) {
+		// TODO: Hide dropdown-button in that case
+		printf("Error: Not chat_.participants_\n");
+		return;
+	}
+
+	//recipient_dropdown_.set_autoexpand_display_button();
+
+	printf("Updating recipient drowndown\n");
+	recipient_dropdown_.clear();
+	recipient_dropdown_.add(_("All"), "",
+		g_gr->images().get("images/wui/menus/toggle_minimap.png"), true);
+	recipient_dropdown_.add(_("Team"), "@team ",
+		g_gr->images().get("images/wui/buildings/menu_list_workers.png"));
+
+
+	// NOCOM: Does not work for network clients. ... Hm, maybe because GameClient does not support ParticipantList...
+
+
+	// Iterate over all human players (except ourselves) and add their names
+	// TODO: Maybe add flag/observer-icon after all...
+	int16_t n_participants = chat_.participants_->get_participant_count();
+	const std::string& local_name = chat_.participants_->get_local_playername();
+
+	for (auto i = 0; i < n_participants; ++i) {
+		// We have to check for ingame because otherweise get_participant_type() isn't supported
+		if (chat_.participants_->is_ingame() &&
+			chat_.participants_->get_participant_type(i) == ParticipantList::ParticipantType::kAI) {
+			// Skip AIs
+			continue;
+		}
+		const std::string& name = chat_.participants_->get_participant_name(i);
+		if (name != local_name) {
+			recipient_dropdown_.add(name, "@" + name + " ",
+				g_gr->images().get("images/wui/fieldaction/menu_tab_watch.png"));
+		}
+	}
 }
 
 /**

@@ -134,13 +134,6 @@ public:
 	 * Passed parameters are the participant number and the new RTT.
 	 */
 	boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
-
-	// Dropdown Menu variants:
-	//  kTextual, kTextualNarrow, kPictorial, kPictorialMenu };
-	// kTextual: Text of selected entry and drop-down arrow
-	// kTextualNarrow: Text of selected entry
-	// kPictorial: Icon of the selected entry
-	// kPictorialMenu: Displays the title defined above when not enough space. Be buggy with a lot of space
 };
 
 #endif // WL_NETWORK_PARTICIPANTLIST_H
