@@ -72,6 +72,13 @@ public:
 	virtual Widelands::TeamNumber get_participant_team(int16_t participant) const = 0;
 
 	/**
+	 * Returns the name of the local player.
+	 * I.e., the player on the current computer.
+	 * @return The player name.
+	 */
+	virtual const std::string& get_local_playername() const = 0;
+
+	/**
 	 * Returns the name of the participant.
 	 * This is the name the participant provided when connecting to the server.
 	 * The name is also used to display chat messages by this participant.

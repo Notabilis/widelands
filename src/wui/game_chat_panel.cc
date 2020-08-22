@@ -110,6 +110,7 @@ void GameChatPanel::key_enter() {
 
 	if (chat_.participants_ != nullptr) {
 		int16_t n = chat_.participants_->get_participant_count();
+		printf("Player name: %s\n", chat_.participants_->get_local_playername().c_str());
 		printf("#participants: %i\n", n);
 		printf("#\tName\t\tType\tPing\tStatus\tColor\tTeam\n");
 		for (auto i = 0; i < n; ++i) {

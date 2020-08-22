@@ -642,6 +642,10 @@ struct HostParticipantProvider : public ParticipantList {
 		return ComputerPlayer::get_implementation(p->get_ai())->descname;
 	}
 
+	virtual const std::string& get_local_playername() const {
+		return d->localplayername;
+	}
+
 	/**
 	 * Returns the status of the player used by the participant.
 	 * This describes whether the participant is still playing or is already defeated.
