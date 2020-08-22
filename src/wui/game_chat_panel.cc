@@ -111,9 +111,28 @@ void GameChatPanel::key_enter() {
 	if (chat_.participants_ != nullptr) {
 		int16_t n = chat_.participants_->get_participant_count();
 		printf("#participants: %i\n", n);
-		//for (auto i = 0; i < n; ++i) {
-			//printf("Name %i: %s\n", i, chat_.participants_->get_participant_name(i).c_str());
-		//}
+		printf("#\tName\t\tType\tPing\tStatus\tColor\tTeam\n");
+		for (auto i = 0; i < n; ++i) {
+			if (chat_.participants_->get_participant_type(i)
+				== ParticipantList::ParticipantType::kObserver) {
+				// It is an observer, so there is not team, color or defeated-status
+				printf("%i.\t%s\t\tObserver\t%u\n", i,
+					chat_.participants_->get_participant_name(i).c_str(),
+					chat_.participants_->get_participant_ping(i)
+					);
+			} else {
+				// It is a player, so all data should be available
+				printf("%i.\t%s\t\t%s\t%u\t%s\t%s\t%u\n", i,
+					chat_.participants_->get_participant_name(i).c_str(),
+					(chat_.participants_->get_participant_type(i)
+						== ParticipantList::ParticipantType::kPlayer ? "Player" : "AI"),
+					chat_.participants_->get_participant_ping(i),
+					(chat_.participants_->get_participant_defeated(i) ? "Defeated" : "Playing"),
+					chat_.participants_->get_participant_color(i).hex_value().c_str(),
+					chat_.participants_->get_participant_team(i)
+					);
+			}
+		}
 	}
 
 

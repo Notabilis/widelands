@@ -511,17 +511,11 @@ struct GameHostImpl {
 };
 
 struct HostParticipantProvider : public ParticipantList {
-	explicit HostParticipantProvider(GameHost* const init_host, GameHostImpl* const init_impl)
-		: h(init_host), d(init_impl) {
+	explicit HostParticipantProvider(/*GameHost* const init_host, */GameHostImpl* const init_impl)
+		: /*h(init_host),*/ d(init_impl) {
 	}
 
-	/**
-	 * Returns the number of currently connected participants.
-	 * Return value - 1 is the highest permitted participant number for the other methods.
-	 * @return The number of connected participants.
-	 */
-	virtual int16_t get_participant_count() const {
-
+#ifdef ignore
 		{
 			// Some of these might not be available when the game hasn't been started yet
 			if (d && d->game && d->game->player_manager()) {
@@ -599,36 +593,34 @@ struct HostParticipantProvider : public ParticipantList {
 			}
 		}
 
+#endif // ignore
+
 // TODO(Notabilis): Bug: Changing anything in the multiplayer lobby resets the "shared-in" setting
 
+
+	virtual int16_t get_participant_count() const {
+		assert(d);
 		// Number of connected humans
 		int16_t n = d->settings.users.size();
 		// Number of AIs
 		n += d->computerplayers.size();
-		printf("humans = %lu, AIs = %lu\n", d->settings.users.size(), d->computerplayers.size());
+//printf("humans = %lu, AIs = %lu\n", d->settings.users.size(), d->computerplayers.size());
 		return n;
 	}
 
-	/**
-	 * Returns the type of participant.
-	 * @param participant The number of the participant get data about.
-	 * @return The type of participant.
-	 */
 	virtual ParticipantType get_participant_type(int16_t participant) const {
-		// NOCOM
+		assert(participant < get_participant_count());
+		if (participant >= static_cast<int16_t>(d->settings.users.size())) {
+			return ParticipantType::kAI;
+		}
+		if (d->settings.users[participant].position == UserSettings::none()) {
+			return ParticipantType::kObserver;
+		}
 		return ParticipantType::kPlayer;
 	}
 
-	/**
-	 * Returns the team of the participant when the participant is a player.
-	 * A value of \c 0 indicates that the participant has no team.
-	 * For observers, the result is undefined.
-	 * @param participant The number of the participant to get data about.
-	 * @return The team of player used by the participant.
-	 */
 	virtual Widelands::TeamNumber get_participant_team(int16_t participant) const {
-		// NOCOM
-		return 0;
+		return participant_to_player(participant)->team_number();
 	}
 
 	/**
@@ -640,13 +632,14 @@ struct HostParticipantProvider : public ParticipantList {
 	 * @return The name of the participant.
 	 */
 	virtual const std::string& get_participant_name(int16_t participant) const {
-		//if (participant < d->settings.users.size()) {
-			// It is a user, get its name
-
-		//}
-		// Its an AI, get its description
-//		n += d->computerplayers.size();
-		return "";
+		if (participant < static_cast<int16_t>(d->settings.users.size())) {
+			// We can't use the Player entry for normal users since it isn't the selected user name
+			// There is ... something done with it and it is also modified when users share a player
+			return d->settings.users[participant].name;
+		}
+		// It is an AI player. Get its type and resolve it to a pretty name
+		const Widelands::Player* p = participant_to_player(participant);
+		return ComputerPlayer::get_implementation(p->get_ai())->descname;
 	}
 
 	/**
@@ -656,9 +649,12 @@ struct HostParticipantProvider : public ParticipantList {
 	 * @param participant The number of the participant get data about.
 	 * @return The player status of the participant.
 	 */
-	virtual const std::string& get_participant_status(int16_t participant) const {
-		// NOCOM
-		return "";
+	virtual bool get_participant_defeated(int16_t participant) const {
+		return participant_to_player(participant)->is_defeated();
+	}
+
+	virtual const RGBColor& get_participant_color(int16_t participant) const {
+		return participant_to_player(participant)->get_playercolor();
 	}
 
 	/**
@@ -672,7 +668,8 @@ struct HostParticipantProvider : public ParticipantList {
 	 */
 	// TODO(Notabilis): Add support for LAN games
 	virtual uint8_t get_participant_ping(int16_t participant) const {
-		// NOCOM
+		assert(participant < get_participant_count());
+		// TODO(Notabilis): Implement this function ... and all the Ping-stuff that belongs to it
 		return 0;
 	}
 
@@ -685,7 +682,33 @@ struct HostParticipantProvider : public ParticipantList {
 	//boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
 
 private:
-	GameHost* h;
+	const Widelands::Player* participant_to_player(int16_t participant) const {
+		assert(participant < get_participant_count());
+		assert(d);
+		assert(d->game);
+		const Widelands::PlayersManager *pm = d->game->player_manager();
+		assert(pm);
+		const Widelands::Player *p = nullptr;
+		if (participant >= static_cast<int16_t>(d->settings.users.size())) {
+			// AI
+			participant -= d->settings.users.size();
+//printf("bbb %i %i %i\n", participant, d->computerplayers[participant]->player_number(), pm->get_number_of_players());
+//assert(d->computerplayers[participant]->player_number() <= pm->get_number_of_players());
+			p = pm->get_player(d->computerplayers[participant]->player_number());
+		} else {
+			// No useful result possible for observers or semi-connected users
+			assert(d->settings.users[participant].position <= UserSettings::highest_playernum());
+//printf("aaa %i %i %i\n", participant, d->settings.users[participant].position, pm->get_number_of_players());
+// Useless, vector has always max size: assert(d->settings.users[participant].position <= pm->get_number_of_players());
+			// .position is the index within d->settings.players and also
+			// as .position+1 the index inside d->game->player_manager()
+			p = pm->get_player(d->settings.users[participant].position + 1);
+		}
+		assert(p);
+		return p;
+	}
+
+	//GameHost* h;
 	GameHostImpl* d;
 };
 
@@ -694,7 +717,7 @@ GameHost::GameHost(const std::string& playername, bool internet)
 	log("[Host]: starting up.\n");
 
 	d->localplayername = playername;
-	d->set_participant_list(new HostParticipantProvider(this, d));
+	d->set_participant_list(new HostParticipantProvider(/*this,*/ d));
 
 	// create a listening socket
 	if (internet) {

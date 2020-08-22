@@ -82,13 +82,14 @@ public:
 	virtual const std::string& get_participant_name(int16_t participant) const = 0;
 
 	/**
-	 * Returns the status of the player used by the participant.
-	 * This describes whether the participant is still playing or is already defeated.
+	 * Returns whether the player used by the participant is defeated or still playing.
 	 * For observers, the result is undefined.
 	 * @param participant The number of the participant get data about.
-	 * @return The player status of the participant.
+	 * @return Whether the participant has been defeated.
 	 */
-	virtual const std::string& get_participant_status(int16_t participant) const = 0;
+	virtual bool get_participant_defeated(int16_t participant) const = 0;
+
+	virtual const RGBColor& get_participant_color(int16_t participant) const = 0;
 
 	/**
 	 * Returns the ping time of the participant.
