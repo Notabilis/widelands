@@ -186,8 +186,32 @@ void GameChatPanel::key_escape() {
 
 void GameChatPanel::set_recipient() {
 	assert(recipient_dropdown_.has_selection());
-	printf("Selected _%s_ in dropdown\n", recipient_dropdown_.get_selected().c_str());
 	// Something has been selected. Re-focus the input box
+	// Replace the old recipient, if any
+
+	const std::string& recipient = recipient_dropdown_.get_selected();
+	std::string str = editbox.text();
+
+	// We have a recipient already
+	if (str[0] == '@') {
+		size_t pos_first_space = str.find(' ');
+		if (pos_first_space == std::string::npos) {
+			// Its only the recipient in the input field (no space separating the message).
+			// Replace it completely.
+			// If we want to sent to @all, recipient is empty so we basically clear the input
+			str = recipient;
+		} else {
+			// There is some message, so replace the old with the new (possibly empty) recipient
+			str.replace(0, pos_first_space + 1, recipient);
+		}
+	} else {
+		// No recipient yet, prepend it
+		// The separating space is already in recipient (see prepare_recipients())
+		str = recipient + str;
+	}
+
+	// Set the updated string
+	editbox.set_text(str);
 	editbox.focus();
 }
 
