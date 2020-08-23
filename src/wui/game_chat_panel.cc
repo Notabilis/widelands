@@ -75,6 +75,9 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 
 	prepare_recipients();
 
+	recipient_dropdown_.select(chat_.last_recipient_);
+	set_recipient();
+
 	chat_message_subscriber_ =
 	   Notifications::subscribe<ChatMessage>([this](const ChatMessage&) { recalculate(true); });
 	recalculate();
@@ -166,17 +169,19 @@ void GameChatPanel::key_enter() {
 	if (str.size()) {
 		const size_t pos_first_space = str.find(' ');
 
-		// Make sure we have a chat message to send and it is more than just the recipient
-		// Either it has no recipient or there is text behind the recipient
-		if (str[0] != '@' || pos_first_space < str.size() - 1) {
-			chat_.send(str);
-		}
-
 		std::string recipient;
 		// Reset message to only the recipient
 		if (str[0] == '@') {
 			recipient = str.substr(0, pos_first_space + 1);
 		}
+
+		// Make sure we have a chat message to send and it is more than just the recipient
+		// Either it has no recipient or there is text behind the recipient
+		if (str[0] != '@' || pos_first_space < str.size() - 1) {
+			chat_.send(str);
+			chat_.last_recipient_ = recipient;
+		}
+
 		editbox.set_text(recipient);
 		// Set selection of dropdown to entered recipient, if possible
 		recipient_dropdown_.select(recipient);
