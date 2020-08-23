@@ -125,7 +125,7 @@ void GameChatPanel::unfocus_edit() {
 
 void GameChatPanel::key_enter() {
 
-
+	// TODO: Remove this block
 	if (chat_.participants_ != nullptr) {
 		int16_t n = chat_.participants_->get_participant_count();
 		printf("Player name: %s\n", chat_.participants_->get_local_playername().c_str());
@@ -163,24 +163,36 @@ void GameChatPanel::key_enter() {
 
 
 	const std::string& str = editbox.text();
-
 	if (str.size()) {
-		assert(recipient_dropdown_.has_selection());
-		// Only prepend dropdown selection if no "@" or "/" is present
-		if (str[0] != '@' && str[0] != '/') {
-			chat_.send(recipient_dropdown_.get_selected() + str);
-		} else {
-			// It already is a whisper or an admin command. Don't add the recipient
-			chat_.send(recipient_dropdown_.get_selected() + str);
+		const size_t pos_first_space = str.find(' ');
+
+		// Make sure we have a chat message to send and it is more than just the recipient
+		// Either it has no recipient or there is text behind the recipient
+		if (str[0] != '@' || pos_first_space < str.size() - 1) {
+			chat_.send(str);
+		}
+
+		std::string recipient;
+		// Reset message to only the recipient
+		if (str[0] == '@') {
+			recipient = str.substr(0, pos_first_space + 1);
+		}
+		editbox.set_text(recipient);
+		// Set selection of dropdown to entered recipient, if possible
+		recipient_dropdown_.select(recipient);
+		if (recipient_dropdown_.get_selected() != recipient) {
+			// Seems the user is writing to someone unknown
+			recipient_dropdown_.set_errored(_("Unknown Recipient"));
 		}
 	}
-
-	editbox.set_text("");
 	sent();
 }
 
 void GameChatPanel::key_escape() {
 	editbox.set_text("");
+	// Re-set the current selection to clean up a possible error state
+	recipient_dropdown_.select(recipient_dropdown_.get_selected());
+	set_recipient();
 	aborted();
 }
 
