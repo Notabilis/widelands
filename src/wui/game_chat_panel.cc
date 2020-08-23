@@ -73,10 +73,16 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 	set_handle_mouse(true);
 	set_can_focus(true);
 
-	prepare_recipients();
-
-	recipient_dropdown_.select(chat_.last_recipient_);
-	set_recipient();
+	if (chat_.participants_ != nullptr) {
+		// React to keypresses for autocompletition
+		editbox.changed.connect([this]() { key_changed(); });
+		// Fill the dropdown menu with usernames
+		prepare_recipients();
+		// In the dropdown, select the entry that was used last time the menu was open
+		recipient_dropdown_.select(chat_.last_recipient_);
+		// Insert "@playername " into the edit field if the dropdown has a selection
+		set_recipient();
+	}
 
 	chat_message_subscriber_ =
 	   Notifications::subscribe<ChatMessage>([this](const ChatMessage&) { recalculate(true); });
@@ -201,6 +207,95 @@ void GameChatPanel::key_escape() {
 	aborted();
 }
 
+void GameChatPanel::key_changed() {
+
+	if (chat_.participants_ == nullptr) {
+		// Nothing to do here
+		return;
+	}
+
+	// If the last two characters are spaces, do an autocomplete
+	std::string str = editbox.text();
+	if (str.size() < 3 || str[str.size() - 1] != ' ' || str[str.size() - 2] != ' ') {
+		return;
+	}
+
+	// If input is "pl  " complete to "playername ", if the start of the name is unique
+
+	// Extract the name to complete. If it starts with '@', remove the '@'
+	size_t namepart_pos = str.find_last_of(" @", str.size() - 3);
+printf("namepart_pos1=%lu\n", namepart_pos);
+	if (namepart_pos == std::string::npos) {
+		namepart_pos = 0;
+	} else {
+		namepart_pos += 1;
+	}
+	// Also remove trailing spaces
+	const std::string namepart = str.substr(namepart_pos, str.size() - 2 - namepart_pos);
+printf("text=_%s_, part=_%s_ namepart_pos=%lu\n", str.c_str(), namepart.c_str(), namepart_pos);
+
+	if (namepart.empty()) {
+		// Nothing left. Maybe a single '@' or 3+ spaces in a row
+		return;
+	}
+
+	// Count the number of equal chars ignoring case
+	static const auto count_equal_chars = [] (const std::string& a, const std::string& b) {
+		const size_t len = std::min(a.size(), b.size());
+		for (size_t i = 0; i < len; ++i) {
+			if (std::tolower(a[i]) != std::tolower(b[i]))
+				return i;
+		}
+		return len;
+	};
+
+	std::string candidate = "";
+
+	// Iterate over all possible completitions (i.e., usernames).
+	// For each, check whether they start with $namepart. If it does, store as candidate.
+	// If there already is a candidate, create a new candidate from the part that is
+	// the same for both candidates. (Note that the merged candidate might have wrong case,
+    // but that is fixed on the next completition)
+    const int16_t n_participants = chat_.participants_->get_participant_count();
+	//const std::string& local_name = chat_.participants_->get_local_playername();
+printf("namepart=%s\n", namepart.c_str());
+	for (auto i = 0; i < n_participants; ++i) {
+		if (chat_.participants_->get_participant_type(i) == ParticipantList::ParticipantType::kAI) {
+			// Skip AIs
+			continue;
+		}
+		const std::string& name = chat_.participants_->get_participant_name(i);
+		//if (name == local_name) {
+		//	continue;
+		//}
+		size_t equal_chars = count_equal_chars(namepart, name);
+printf("name=%s count=%lu\n", namepart.c_str(), equal_chars);
+		if (equal_chars == namepart.size()) {
+			// We have a candidate!
+printf("MAtch!\n");
+			// Check if we already have a candidate. If not, use this one
+printf("old_candidate=%s\n", candidate.c_str());
+			if (candidate.empty()) {
+				// Append a space so the user can continue typing after the completition
+				candidate = name + " ";
+			} else {
+				// We already have one. Create an new candidate that is the combination of the two
+				equal_chars = count_equal_chars(candidate, name);
+				// No space appended here since the name is not complete yet
+				candidate = candidate.substr(0, equal_chars);
+			}
+printf("new_candidate=%s\n", candidate.c_str());
+		}
+	}
+
+	// If we have a candidate, set the new text for the input box
+	if (!candidate.empty()) {
+		str.replace(namepart_pos, std::string::npos, candidate);
+printf("str=%s\n", str.c_str());
+		editbox.set_text(str);
+	}
+}
+
 void GameChatPanel::set_recipient() {
 	assert(recipient_dropdown_.has_selection());
 	// Something has been selected. Re-focus the input box
@@ -244,7 +339,7 @@ void GameChatPanel::prepare_recipients() {
 	printf("Updating recipient drowndown\n");
 	recipient_dropdown_.clear();
 	recipient_dropdown_.add(_("All"), "",
-		g_gr->images().get("images/wui/menus/toggle_minimap.png"), true);
+		g_gr->images().get("images/wui/menus/toggle_minimap.png"), true); // true -> select this
 	recipient_dropdown_.add(_("Team"), "@team ",
 		g_gr->images().get("images/wui/buildings/menu_list_workers.png"));
 
@@ -253,7 +348,7 @@ void GameChatPanel::prepare_recipients() {
 
 
 	// Iterate over all human players (except ourselves) and add their names
-	int16_t n_participants = chat_.participants_->get_participant_count();
+	const int16_t n_participants = chat_.participants_->get_participant_count();
 	const std::string& local_name = chat_.participants_->get_local_playername();
 
 	for (auto i = 0; i < n_participants; ++i) {
@@ -262,17 +357,18 @@ void GameChatPanel::prepare_recipients() {
 			continue;
 		}
 		const std::string& name = chat_.participants_->get_participant_name(i);
-		if (name != local_name) {
+		if (name == local_name) {
+			continue;
+		}
 
-			if (chat_.participants_->get_participant_type(i)
-				== ParticipantList::ParticipantType::kObserver) {
-				recipient_dropdown_.add(name, "@" + name + " ",
-					g_gr->images().get("images/wui/fieldaction/menu_tab_watch.png"));
-			} else {
-				recipient_dropdown_.add(name, "@" + name + " ",
-					playercolor_image(chat_.participants_->get_participant_color(i),
-						"images/players/genstats_player.png"));
-			}
+		if (chat_.participants_->get_participant_type(i)
+			== ParticipantList::ParticipantType::kObserver) {
+			recipient_dropdown_.add(name, "@" + name + " ",
+				g_gr->images().get("images/wui/fieldaction/menu_tab_watch.png"));
+		} else {
+			recipient_dropdown_.add(name, "@" + name + " ",
+				playercolor_image(chat_.participants_->get_participant_color(i),
+					"images/players/genstats_player.png"));
 		}
 	}
 }

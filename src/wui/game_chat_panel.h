@@ -61,6 +61,7 @@ private:
 	void recalculate(bool has_new_message = false);
 	void key_enter();
 	void key_escape();
+	void key_changed();
 	void set_recipient();
 	void prepare_recipients();
 
