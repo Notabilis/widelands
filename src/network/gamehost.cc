@@ -513,7 +513,7 @@ struct GameHostImpl {
 
 struct HostParticipantProvider : public ParticipantList {
 	explicit HostParticipantProvider(/*GameHost* const init_host, */GameHostImpl* const init_impl)
-		: /*h(init_host),*/ d(init_impl) {
+		: /*h(init_host),*/ d(init_impl), human_user_count(0) {
 	}
 
 #ifdef ignore
@@ -602,19 +602,24 @@ struct HostParticipantProvider : public ParticipantList {
 	virtual int16_t get_participant_count() const {
 		assert(d);
 		// Number of connected humans
-		int16_t n = d->settings.users.size();
-		// Number of AIs
-		n += d->computerplayers.size();
 //printf("humans = %lu, AIs = %lu\n", d->settings.users.size(), d->computerplayers.size());
-		return n;
+		// d->settings.users might contain disconnected humans, filter them out
+		human_user_count = 0;
+		for (const UserSettings& u : d->settings.users) {
+			if (u.position != UserSettings::not_connected()) {
+				++human_user_count;
+			}
+		}
+		assert(human_user_count <= static_cast<int16_t>(d->settings.users.size()));
+		return human_user_count + d->computerplayers.size();
 	}
 
 	virtual ParticipantType get_participant_type(int16_t participant) const {
 		assert(participant < get_participant_count());
-		if (participant >= static_cast<int16_t>(d->settings.users.size())) {
+		if (participant >= human_user_count) {
 			return ParticipantType::kAI;
 		}
-		if (d->settings.users[participant].position == UserSettings::none()) {
+		if (participant_to_user(participant).position == UserSettings::none()) {
 			return ParticipantType::kObserver;
 		}
 		return ParticipantType::kPlayer;
@@ -634,10 +639,10 @@ struct HostParticipantProvider : public ParticipantList {
 	 * @return The name of the participant.
 	 */
 	virtual const std::string& get_participant_name(int16_t participant) const {
-		if (participant < static_cast<int16_t>(d->settings.users.size())) {
+		if (participant < human_user_count) {
 			// We can't use the Player entry for normal users since it isn't the selected user name
 			// There is ... something done with it and it is also modified when users share a player
-			return d->settings.users[participant].name;
+			return participant_to_user(participant).name;
 		}
 		// It is an AI player. Get its type and resolve it to a pretty name
 		const Widelands::Player* p = participant_to_player(participant);
@@ -696,21 +701,38 @@ struct HostParticipantProvider : public ParticipantList {
 	//boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
 
 private:
+
+	const UserSettings& participant_to_user(int16_t participant) const {
+		assert(participant < human_user_count);
+		assert(participant < static_cast<int16_t>(d->settings.users.size()));
+		for (const UserSettings& u : d->settings.users) {
+			if (u.position == UserSettings::not_connected()) {
+				continue;
+			}
+			if (participant == 0) {
+				return u;
+			}
+			--participant;
+		}
+		NEVER_HERE();
+	}
+
 	int32_t participant_to_playerindex(int16_t participant) const {
-		if (participant >= static_cast<int16_t>(d->settings.users.size())) {
+		if (participant >= human_user_count) {
 			// AI
-			participant -= d->settings.users.size();
+			participant -= human_user_count;
 //printf("bbb %i %i %i\n", participant, d->computerplayers[participant]->player_number(), pm->get_number_of_players());
 //assert(d->computerplayers[participant]->player_number() <= pm->get_number_of_players());
 			return d->computerplayers[participant]->player_number();
 		} else {
 			// No useful result possible for observers or semi-connected users
-			assert(d->settings.users[participant].position <= UserSettings::highest_playernum());
+
+			assert(participant_to_user(participant).position <= UserSettings::highest_playernum());
 //printf("aaa %i %i %i\n", participant, d->settings.users[participant].position, pm->get_number_of_players());
 // Useless, vector has always max size: assert(d->settings.users[participant].position <= pm->get_number_of_players());
 			// .position is the index within d->settings.players and also
 			// as .position+1 the index inside d->game->player_manager()
-			return d->settings.users[participant].position + 1;
+			return participant_to_user(participant).position + 1;
 		}
 	}
 
@@ -729,6 +751,9 @@ private:
 
 	//GameHost* h;
 	GameHostImpl* d;
+	/// The highest participant number that represents a human user.
+	/// Higher numbers represent AIs
+	mutable int16_t human_user_count;
 };
 
 GameHost::GameHost(const std::string& playername, bool internet)
