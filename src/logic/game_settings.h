@@ -57,17 +57,16 @@ struct PlayerSettings {
 };
 
 struct UserSettings {
-	// none() seems to be used if a user is an observer but not a player
-	// TODO(k.halfman): make this some const instead of calculating this every time
-	static uint8_t none() {
+	// Seems to be used if a user is an observer but not a player
+	constexpr static uint8_t none() {
 		return std::numeric_limits<uint8_t>::max();
 	}
-	// not_connected() seems to be used only in the GameHost when a client connects over the
+	// Seems to be used only in the GameHost when a client connects over the
 	// (low level) network but has not finished its initialization yet
-	static uint8_t not_connected() {
+	constexpr static uint8_t not_connected() {
 		return none() - 1;
 	}
-	static uint8_t highest_playernum() {
+	constexpr static uint8_t highest_playernum() {
 		return not_connected() - 1;
 	}
 

@@ -66,14 +66,19 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 	editbox.ok.connect([this]() { key_enter(); });
 	editbox.cancel.connect([this]() { key_escape(); });
 	editbox.activate_history(true);
-	recipient_dropdown_.selected.connect([this]() { set_recipient(); });
 
-	// TODO: The selection of the dropdown is reset everytime the chat is re-opened. Store it
 	// Probably a TODO: Refreshing the recipient list even while the window stays open will reset the selection
 	set_handle_mouse(true);
 	set_can_focus(true);
 
-	if (chat_.participants_ != nullptr) {
+	if (chat_.participants_ == nullptr) {
+		// No access to participant list. Hide the dropdown
+		recipient_dropdown_.set_visible(false);
+		editbox.set_pos(Vector2i(editbox.get_x() - 28, editbox.get_y()));
+		editbox.set_size(editbox.get_w() + 28, editbox.get_h());
+		editbox.set_text(chat_.last_recipient_);
+	} else {
+		recipient_dropdown_.selected.connect([this]() { set_recipient(); });
 		// React to keypresses for autocompletition
 		editbox.changed.connect([this]() { key_changed(); });
 		// Fill the dropdown menu with usernames
@@ -190,10 +195,12 @@ void GameChatPanel::key_enter() {
 
 		editbox.set_text(recipient);
 		// Set selection of dropdown to entered recipient, if possible
-		recipient_dropdown_.select(recipient);
-		if (recipient_dropdown_.get_selected() != recipient) {
-			// Seems the user is writing to someone unknown
-			recipient_dropdown_.set_errored(_("Unknown Recipient"));
+		if (chat_.participants_ != nullptr) {
+			recipient_dropdown_.select(recipient);
+			if (recipient_dropdown_.get_selected() != recipient) {
+				// Seems the user is writing to someone unknown
+				recipient_dropdown_.set_errored(_("Unknown Recipient"));
+			}
 		}
 	}
 	sent();
@@ -202,8 +209,10 @@ void GameChatPanel::key_enter() {
 void GameChatPanel::key_escape() {
 	editbox.set_text("");
 	// Re-set the current selection to clean up a possible error state
-	recipient_dropdown_.select(recipient_dropdown_.get_selected());
-	set_recipient();
+	if (chat_.participants_ != nullptr) {
+		recipient_dropdown_.select(recipient_dropdown_.get_selected());
+		set_recipient();
+	}
 	aborted();
 }
 
@@ -297,6 +306,7 @@ printf("str=%s\n", str.c_str());
 }
 
 void GameChatPanel::set_recipient() {
+	assert(chat_.participants_ != nullptr);
 	assert(recipient_dropdown_.has_selection());
 	// Something has been selected. Re-focus the input box
 	// Replace the old recipient, if any
@@ -328,18 +338,15 @@ void GameChatPanel::set_recipient() {
 }
 
 void GameChatPanel::prepare_recipients() {
-	if (chat_.participants_ == nullptr) {
-		// TODO: Hide dropdown-button in that case
-		printf("Error: Not chat_.participants_\n");
-		return;
-	}
-
-	//recipient_dropdown_.set_autoexpand_display_button();
+	assert(chat_.participants_ != nullptr);
 
 	printf("Updating recipient drowndown\n");
 	recipient_dropdown_.clear();
 	recipient_dropdown_.add(_("All"), "",
-		g_gr->images().get("images/wui/menus/toggle_minimap.png"), true); // true -> select this
+		g_gr->images().get("images/wui/menus/toggle_minimap.png"));
+	// Select the "All" entry by default. Do *not* use the add() parameter for it since
+	// it calls the listener for selected()
+	recipient_dropdown_.select("");
 	recipient_dropdown_.add(_("Team"), "@team ",
 		g_gr->images().get("images/wui/buildings/menu_list_workers.png"));
 
