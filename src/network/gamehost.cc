@@ -1143,6 +1143,10 @@ int32_t GameHost::check_client(const std::string& name) {
 	uint32_t client = 0;
 	for (; i < d->settings.users.size(); ++i) {
 		const UserSettings& user = d->settings.users.at(i);
+		if (user.position == UserSettings::not_connected()) {
+			// Ignore users thats are not yet fully or not anymore connected
+			continue;
+		}
 		if (user.name == name) {
 			break;
 		}
