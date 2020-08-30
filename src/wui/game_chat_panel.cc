@@ -67,7 +67,6 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 	editbox.cancel.connect([this]() { key_escape(); });
 	editbox.activate_history(true);
 
-	// Probably a TODO: Refreshing the recipient list even while the window stays open will reset the selection
 	set_handle_mouse(true);
 	set_can_focus(true);
 
@@ -87,6 +86,20 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 		recipient_dropdown_.select(chat_.last_recipient_);
 		// Insert "@playername " into the edit field if the dropdown has a selection
 		set_recipient();
+		chat_.participants_->participants_updated.connect([this]() {
+				const std::string selected_recipient = recipient_dropdown_.get_selected();
+				prepare_recipients();
+				// Re-select the recipient. The current selection might no longer be valid if
+				// a participant left the gane
+				// NOCOM: Test this code
+				if (selected_recipient == recipient_dropdown_.get_selected()) {
+					// Clear the @name string in the input box
+				} else {
+					// The recipient changed, probably because a player left.
+					// So we have an unknown recipient, set error state but don't change input field
+					recipient_dropdown_.set_errored(selected_recipient + _(" is unknown"));
+				}
+			});
 	}
 
 	chat_message_subscriber_ =
@@ -174,7 +187,6 @@ void GameChatPanel::key_enter() {
 			}
 		}
 	}
-
 
 	const std::string& str = editbox.text();
 	if (str.size()) {
