@@ -362,10 +362,6 @@ void GameChatPanel::prepare_recipients() {
 	recipient_dropdown_.add(_("Team"), "@team ",
 		g_gr->images().get("images/wui/buildings/menu_list_workers.png"));
 
-
-	// NOCOM: Does not work for network clients. ... Hm, maybe because GameClient does not support ParticipantList...
-
-
 	// Iterate over all human players (except ourselves) and add their names
 	const int16_t n_participants = chat_.participants_->get_participant_count();
 	const std::string& local_name = chat_.participants_->get_local_playername();
