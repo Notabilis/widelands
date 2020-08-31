@@ -87,21 +87,32 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 		// Insert "@playername " into the edit field if the dropdown has a selection
 		set_recipient();
 		chat_.participants_->participants_updated.connect([this]() {
-				const std::string selected_recipient = recipient_dropdown_.get_selected();
+				// TODO: Move this into own method
+				// Create new contents for dropdown
 				prepare_recipients();
-				// Re-select the recipient. The current selection might no longer be valid if
-				// a participant left the gane
-				// NOCOM: Test this code
-				if (selected_recipient == recipient_dropdown_.get_selected()) {
-					// Clear the @name string in the input box
-				} else {
-					// The recipient changed, probably because a player left.
-					// So we have an unknown recipient, set error state but don't change input field
-					recipient_dropdown_.set_errored(selected_recipient + _(" is unknown"));
+				// Get the current recipient
+				std::string recipient = "";
+				const std::string& text = editbox.text();
+				if (!text.empty() && text[0] == '@') {
+					// Get the recipient string including the first space
+					// If there is no space, return the whole string
+					const size_t pos_space = text.find(' ');
+					if (pos_space != std::string::npos) {
+						recipient = text.substr(0, pos_space + 1);
+					} else {
+						// Append a space since that increases the chance
+						// to get a match in the dropdown
+						recipient = text + ' ';
+					}
 				}
+				// Try to re-set the recipient
+				recipient_dropdown_.select(recipient);
+				if (recipient != recipient_dropdown_.get_selected()) {
+					recipient_dropdown_.set_errored(_("Unknown Recipient"));
+				}
+
 			});
 	}
-
 	chat_message_subscriber_ =
 	   Notifications::subscribe<ChatMessage>([this](const ChatMessage&) { recalculate(true); });
 	recalculate();
