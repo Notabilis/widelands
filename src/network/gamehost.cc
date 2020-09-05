@@ -1806,7 +1806,6 @@ void GameHost::broadcast_setting_player(uint8_t const number) {
 	if (d && d->chat.participants_) {
 		d->chat.participants_->participants_updated();
 	}
-
 }
 
 void GameHost::write_setting_all_players(SendPacket& packet) {
@@ -1832,6 +1831,9 @@ void GameHost::broadcast_setting_user(uint32_t const number) {
 	packet.unsigned_32(number);
 	write_setting_user(packet, number);
 	broadcast(packet);
+	if (d && d->chat.participants_) {
+		d->chat.participants_->participants_updated();
+	}
 }
 
 void GameHost::write_setting_all_users(SendPacket& packet) {
