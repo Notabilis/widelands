@@ -516,85 +516,6 @@ struct HostParticipantProvider : public ParticipantList {
 		: /*h(init_host),*/ d(init_impl), human_user_count(0) {
 	}
 
-#ifdef ignore
-		{
-			// Some of these might not be available when the game hasn't been started yet
-			if (d && d->game && d->game->player_manager()) {
-				Widelands::PlayersManager *pm = d->game->player_manager();
-				int n = pm->get_number_of_players();
-				printf("%i Players:\n", n);
-				int found = 0;
-				for (uint8_t i = 1; found < n; ++i) {
-					assert(i <= kMaxPlayers);
-					Widelands::Player *p = pm->get_player(i);
-					printf("%i. ", i);
-					if (p == nullptr) {
-						printf(" UNUSED\n");
-					} else {
-						++found;
-						printf("_%s_ ", p->get_name().c_str());
-						printf("number=%i ", p->player_number());
-						printf("team=%i ", p->team_number());
-						printf("ai=%s ", p->get_ai().c_str());
-						if (!p->get_ai().empty()) {
-							// Print a pretty ai name
-							printf("ai_pretty=%s ", ComputerPlayer::get_implementation(p->get_ai())->descname.c_str());
-						}
-						printf("defeated=%i ", p->is_defeated());
-						printf("color=%s\n", p->get_playercolor().hex_value().c_str());
-					}
-				}
-			}
-
-			int n = d->settings.users.size();
-			printf("%i Users:\n", n);
-			for (uint8_t i = 0; i < n; ++i) {
-				printf("%i. %s position=%i observer=%i active=%i\n",
-						i, d->settings.users[i].name.c_str(), d->settings.users[i].position,
-						(d->settings.users[i].position == UserSettings::none()),
-						(d->settings.users[i].position != UserSettings::not_connected()));
-						// .position is the index within d->settings.players and also
-						// as .position+1 the index inside d->game->player_manager()
-						if (d->settings.users[i].position != UserSettings::not_connected()
-							&& d->settings.users[i].position <= UserSettings::highest_playernum()) {
-							// We have an active player
-							printf("  PlayerSettings:\n");
-							const PlayerSettings& ps = d->settings.players.at(d->settings.users[i].position);
-                            switch (ps.state) {
-								case PlayerSettings::State::kOpen:
-									printf("  State: kOpen\n");
-									break;
-								case PlayerSettings::State::kHuman:
-									printf("  State: kHuman\n");
-									break;
-								case PlayerSettings::State::kComputer:
-									printf("  State: kComputer\n");
-									break;
-								case PlayerSettings::State::kClosed:
-									printf("  State: kClosed\n");
-									break;
-								case PlayerSettings::State::kShared:
-									printf("  State: kShared\n");
-									break;
-                            }
-                            printf("  init_index: %u\n", ps.initialization_index);
-                            printf("  Name: %s\n", ps.name.c_str());
-                            printf("  Tribe: %s\n", ps.tribe.c_str());
-                            printf("  Ai: %s\n", ps.ai.c_str());
-                            printf("  Team: %i\n", ps.team);
-                            printf("  Closeable: %i\n", ps.closeable);
-                            printf("  Shared by: %i\n", ps.shared_in);
-						}
-			}
-
-			printf("%lu AIs\n", d->computerplayers.size());
-			for (size_t i = 0; i < d->computerplayers.size(); ++i) {
-				// Playernumber seems to be the one from the players list. Great!
-				printf("%lu. has player number %i\n", i, d->computerplayers[i]->player_number());
-			}
-		}
-
-#endif // ignore
 
 // TODO(Notabilis): Bug: Changing anything in the multiplayer lobby resets the "shared-in" setting
 
@@ -692,8 +613,6 @@ struct HostParticipantProvider : public ParticipantList {
 		return 0;
 	}
 
-	/// Called when the data was updated and should be re-fetched and redrawn
-	//boost::signals2::signal<void()> participants_updated;
 	/**
 	 * Called when the RTT for a participant changed.
 	 * Passed parameters are the participant number and the new RTT.
