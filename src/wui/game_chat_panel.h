@@ -40,6 +40,8 @@ struct GameChatPanel : public UI::Panel {
 	              ChatProvider&,
 	              UI::PanelStyle style);
 
+	virtual ~GameChatPanel();
+
 	// Signal is called when a message has been sent by the user.
 	boost::signals2::signal<void()> sent;
 
@@ -73,6 +75,7 @@ private:
 	FxId chat_sound;
 	UI::Dropdown<std::string> recipient_dropdown_;
 	std::unique_ptr<Notifications::Subscriber<ChatMessage>> chat_message_subscriber_;
+	boost::signals2::connection update_signal_connection;
 };
 
 #endif  // end of include guard: WL_WUI_GAME_CHAT_PANEL_H

@@ -87,7 +87,7 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 		recipient_dropdown_.select(chat_.last_recipient_);
 		// Insert "@playername " into the edit field if the dropdown has a selection
 		set_recipient();
-		chat_.participants_->participants_updated.connect([this]() {
+		update_signal_connection = chat_.participants_->participants_updated.connect([this]() {
 				// Create new contents for dropdown
 				prepare_recipients();
 				select_recipient();
@@ -96,6 +96,12 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 	chat_message_subscriber_ =
 	   Notifications::subscribe<ChatMessage>([this](const ChatMessage&) { recalculate(true); });
 	recalculate();
+}
+
+GameChatPanel::~GameChatPanel() {
+	if (chat_.participants_ != nullptr) {
+		update_signal_connection.disconnect();
+	}
 }
 
 /**
@@ -293,6 +299,8 @@ printf("old_candidate=%s\n", candidate.c_str());
 			}
 printf("new_candidate=%s\n", candidate.c_str());
 		}
+	};
+
 	// Iterate over all possible completitions (i.e., usernames).
 	// For each, check whether they start with $namepart. If it does, store as candidate.
 	// If there already is a candidate, create a new candidate from the part that is
