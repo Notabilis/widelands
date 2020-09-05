@@ -183,6 +183,11 @@ private:
 	/// The highest participant number that represents a human user.
 	/// Higher numbers represent AIs
 	mutable int16_t human_user_count_;
+#ifndef NDEBUG
+	/// The number of participants found in the last call to get_participant_count().
+	/// Used to speed up the asserts.
+	mutable int16_t participant_count_;
+#endif // NDEBUG
 };
 
 

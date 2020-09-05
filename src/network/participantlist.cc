@@ -13,6 +13,10 @@ ClientParticipantList::ClientParticipantList(const GameSettings* settings, Widel
 	assert(settings_ != nullptr);
 	// game_ might still be a nullpointer around here
 	// computerplayers_ is okay to be nullptr
+#ifndef NDEBUG
+	// Get initial participant count
+	get_participant_count();
+#endif // NDEBUG
 }
 
 // TODO(Notabilis): (unrelated) Bug: Changing anything in the multiplayer lobby resets the "shared-in" setting
@@ -60,12 +64,14 @@ else printf("get_count() not using\n");
 	}
 printf("users = %lu, active users = %i, AIs = %i\n", settings_->users.size(), human_user_count_, n_ais);
 	assert(human_user_count_ <= static_cast<int16_t>(settings_->users.size()));
+#ifndef NDEBUG
+	participant_count_ = human_user_count_ + n_ais;
+#endif // NDEBUG
 	return human_user_count_ + n_ais;
 }
 
 ParticipantList::ParticipantType ClientParticipantList::get_participant_type(int16_t participant) const {
-	// TODO: get_participant_count() is relatively slow. Maybe remove these asserts?
-	assert(participant < get_participant_count());
+	assert(participant < participant_count_);
 	if (participant >= human_user_count_) {
 		return ParticipantList::ParticipantType::kAI;
 	}
@@ -122,7 +128,7 @@ bool ClientParticipantList::is_ingame() const {
 // TODO(Notabilis): Add support for LAN games
 uint8_t ClientParticipantList::get_participant_ping(int16_t participant) const {
 	assert(is_ingame());
-	assert(participant < get_participant_count());
+	assert(participant < participant_count_);
 	// TODO(Notabilis): Implement this function ... and all the Ping-stuff that belongs to it
 	return 0;
 }
@@ -180,7 +186,7 @@ int32_t ClientParticipantList::participant_to_playerindex(int16_t participant) c
 }
 
 const Widelands::Player* ClientParticipantList::participant_to_player(int16_t participant) const {
-	assert(participant < get_participant_count());
+	assert(participant < participant_count_);
 	assert(game_ != nullptr);
 	const Widelands::PlayersManager *pm = game_->player_manager();
 	assert(pm);
