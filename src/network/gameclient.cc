@@ -58,7 +58,6 @@
 #include "wui/interactive_spectator.h"
 
 struct GameClientImpl {
-/// TODO: Add support for ParticipantList and set it in the ChatProvider
 	bool internet_;
 
 	GameSettings settings;
@@ -199,169 +198,6 @@ void GameClientImpl::run_game(InteractiveGameBase* igb) {
 	game = nullptr;
 }
 
-struct ClientParticipantProvider : public ParticipantList {
-	explicit ClientParticipantProvider(GameClientImpl* const init_impl)
-		: d(init_impl), human_user_count(0) {
-	}
-
-	virtual int16_t get_participant_count() const {
-		assert(d);
-		// Number of connected humans
-		// d->settings.users might contain disconnected humans, filter them out
-		human_user_count = 0;
-		for (const UserSettings& u : d->settings.users) {
-			// TODO: Don't know whether this can happen on clients
-			if (u.position != UserSettings::not_connected()) {
-				++human_user_count;
-			}
-		}
-		int16_t n_ais = 0;
-		if (d->game) {
-			const Widelands::PlayersManager *pm = d->game->player_manager();
-			const uint8_t n_players = pm->get_number_of_players();
-			for (int32_t i = 0; i < kMaxPlayers; ++i) {
-				if (n_ais >= n_players) {
-					break;
-				}
-				const Widelands::Player* p = pm->get_player(i + 1);
-				if (p == nullptr) {
-					continue;
-				}
-				if (!p->get_ai().empty()) {
-					++n_ais;
-				}
-			}
-		}
-		assert(human_user_count <= static_cast<int16_t>(d->settings.users.size()));
-		return human_user_count + n_ais;
-	}
-
-	virtual ParticipantType get_participant_type(int16_t participant) const {
-		// TODO: get_participant_count() is relatively slow. Maybe remove these asserts?
-		assert(participant < get_participant_count());
-		if (participant >= human_user_count) {
-			return ParticipantType::kAI;
-		}
-		if (participant_to_user(participant).position == UserSettings::none()) {
-			return ParticipantType::kObserver;
-		}
-		return ParticipantType::kPlayer;
-	}
-
-	virtual Widelands::TeamNumber get_participant_team(int16_t participant) const {
-		assert(is_ingame());
-		return participant_to_player(participant)->team_number();
-	}
-
-	virtual const std::string& get_participant_name(int16_t participant) const {
-		if (participant < human_user_count) {
-			// We can't use the Player entry for normal users since it isn't the selected user name
-			// There is ... something done with it and it is also modified when users share a player
-			return participant_to_user(participant).name;
-		}
-		// It is an AI player. Get its type and resolve it to a pretty name
-		const Widelands::Player* p = participant_to_player(participant);
-		return ComputerPlayer::get_implementation(p->get_ai())->descname;
-	}
-
-	virtual const std::string& get_local_playername() const {
-		return d->localplayername;
-	}
-
-	virtual bool get_participant_defeated(int16_t participant) const {
-		assert(is_ingame());
-		return participant_to_player(participant)->is_defeated();
-	}
-
-	virtual const RGBColor& get_participant_color(int16_t participant) const {
-		assert(get_participant_type(participant) != ParticipantType::kObserver);
-		// Partially copied code from Player class, but this way also works in lobby
-		return kPlayerColors[participant_to_playerindex(participant) - 1];
-	}
-
-	virtual bool is_ingame() const {
-		return (d->game != nullptr);
-	}
-
-	virtual uint8_t get_participant_ping(int16_t participant) const {
-		assert(is_ingame());
-		assert(participant < get_participant_count());
-		// TODO(Notabilis): Implement this function ... and all the Ping-stuff that belongs to it
-		return 0;
-	}
-
-	/**
-	 * Called when the RTT for a participant changed.
-	 * Passed parameters are the participant number and the new RTT.
-	 */
-	//boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
-
-private:
-
-	const UserSettings& participant_to_user(int16_t participant) const {
-		assert(participant < human_user_count);
-		assert(participant < static_cast<int16_t>(d->settings.users.size()));
-		for (const UserSettings& u : d->settings.users) {
-			if (u.position == UserSettings::not_connected()) {
-				continue;
-			}
-			if (participant == 0) {
-				return u;
-			}
-			--participant;
-		}
-		NEVER_HERE();
-	}
-
-	int32_t participant_to_playerindex(int16_t participant) const {
-		if (participant >= human_user_count) {
-			// AI
-			participant -= human_user_count;
-			assert (d->game);
-			const Widelands::PlayersManager *pm = d->game->player_manager();
-			for (int32_t i = 0; i < kMaxPlayers; ++i) {
-				const Widelands::Player* p = pm->get_player(i + 1);
-				if (p == nullptr) {
-					continue;
-				}
-				// Found one
-				if (participant == 0) {
-					assert(i + 1 == p->player_number());
-					return i + 1;
-				}
-				--participant;
-				assert(participant >= 0);
-			}
-			NEVER_HERE();
-		} else {
-			// No useful result possible for observers or semi-connected users
-
-			assert(participant_to_user(participant).position <= UserSettings::highest_playernum());
-			// .position is the index within d->settings.players and also
-			// as .position+1 the index inside d->game->player_manager()
-			return participant_to_user(participant).position + 1;
-		}
-	}
-
-	const Widelands::Player* participant_to_player(int16_t participant) const {
-		assert(participant < get_participant_count());
-		assert(d);
-		assert(d->game);
-		const Widelands::PlayersManager *pm = d->game->player_manager();
-		assert(pm);
-		const int32_t playerindex = participant_to_playerindex(participant);
-		assert(playerindex > 0);
-		const Widelands::Player *p = pm->get_player(playerindex);
-		assert(p);
-		return p;
-	}
-
-	GameClientImpl* d;
-	/// The highest participant number that represents a human user.
-	/// Higher numbers represent AIs
-	mutable int16_t human_user_count;
-};
-
 GameClient::GameClient(const std::pair<NetAddress, NetAddress>& host,
                        const std::string& playername,
                        bool internet,
@@ -370,7 +206,8 @@ GameClient::GameClient(const std::pair<NetAddress, NetAddress>& host,
 
 	d->internet_ = internet;
 
-	d->participants.reset(new ClientParticipantProvider(d));
+	assert(d->game != nullptr);
+	d->participants.reset(new ClientParticipantList(&(d->settings), d->game, nullptr, d->localplayername));
 	participants_ = d->participants.get();
 
 	if (internet) {

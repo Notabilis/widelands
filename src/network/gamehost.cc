@@ -511,176 +511,13 @@ struct GameHostImpl {
 	}
 };
 
-struct HostParticipantProvider : public ParticipantList {
-	explicit HostParticipantProvider(/*GameHost* const init_host, */GameHostImpl* const init_impl)
-		: /*h(init_host),*/ d(init_impl), human_user_count(0) {
-	}
-
-
-// TODO(Notabilis): Bug: Changing anything in the multiplayer lobby resets the "shared-in" setting
-
-
-	virtual int16_t get_participant_count() const {
-		assert(d);
-		// Number of connected humans
-//printf("humans = %lu, AIs = %lu\n", d->settings.users.size(), d->computerplayers.size());
-		// d->settings.users might contain disconnected humans, filter them out
-		human_user_count = 0;
-		for (const UserSettings& u : d->settings.users) {
-			if (u.position != UserSettings::not_connected()) {
-				++human_user_count;
-			}
-		}
-		assert(human_user_count <= static_cast<int16_t>(d->settings.users.size()));
-		return human_user_count + d->computerplayers.size();
-	}
-
-	virtual ParticipantType get_participant_type(int16_t participant) const {
-		assert(participant < get_participant_count());
-		if (participant >= human_user_count) {
-			return ParticipantType::kAI;
-		}
-		if (participant_to_user(participant).position == UserSettings::none()) {
-			return ParticipantType::kObserver;
-		}
-		return ParticipantType::kPlayer;
-	}
-
-	virtual Widelands::TeamNumber get_participant_team(int16_t participant) const {
-		assert(is_ingame());
-		return participant_to_player(participant)->team_number();
-	}
-
-	/**
-	 * Returns the name of the participant.
-	 * This is the name the participant provided when connecting to the server.
-	 * The name is also used to display chat messages by this participant.
-	 * For AIs this is a descriptiv name of the AI.
-	 * @param participant The number of the participant get data about.
-	 * @return The name of the participant.
-	 */
-	virtual const std::string& get_participant_name(int16_t participant) const {
-		if (participant < human_user_count) {
-			// We can't use the Player entry for normal users since it isn't the selected user name
-			// There is ... something done with it and it is also modified when users share a player
-			return participant_to_user(participant).name;
-		}
-		// It is an AI player. Get its type and resolve it to a pretty name
-		const Widelands::Player* p = participant_to_player(participant);
-		return ComputerPlayer::get_implementation(p->get_ai())->descname;
-	}
-
-	virtual const std::string& get_local_playername() const {
-		return d->localplayername;
-	}
-
-	/**
-	 * Returns the status of the player used by the participant.
-	 * This describes whether the participant is still playing or is already defeated.
-	 * For observers, the result is undefined.
-	 * @param participant The number of the participant get data about.
-	 * @return The player status of the participant.
-	 */
-	virtual bool get_participant_defeated(int16_t participant) const {
-		assert(is_ingame());
-		return participant_to_player(participant)->is_defeated();
-	}
-
-	virtual const RGBColor& get_participant_color(int16_t participant) const {
-		assert(get_participant_type(participant) != ParticipantType::kObserver);
-		// Partially copied code from Player class, but this way also works in lobby
-		return kPlayerColors[participant_to_playerindex(participant) - 1];
-	}
-
-	virtual bool is_ingame() const {
-		return (d->game != nullptr);
-	}
-
-	/**
-	 * Returns the ping time of the participant.
-	 * Returned is the time that it took the client to return a PING request by the network
-	 * relay.
-	 * For AI participant the result is undefined.
-	 * In network games that don't use the network relay the result is undefined.
-	 * @param participant The number of the participant get data about.
-	 * @return The RTT in milliseconds for this participant up to 255ms.
-	 */
-	// TODO(Notabilis): Add support for LAN games
-	virtual uint8_t get_participant_ping(int16_t participant) const {
-		assert(is_ingame());
-		assert(participant < get_participant_count());
-		// TODO(Notabilis): Implement this function ... and all the Ping-stuff that belongs to it
-		return 0;
-	}
-
-	/**
-	 * Called when the RTT for a participant changed.
-	 * Passed parameters are the participant number and the new RTT.
-	 */
-	//boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
-
-private:
-
-	const UserSettings& participant_to_user(int16_t participant) const {
-		assert(participant < human_user_count);
-		assert(participant < static_cast<int16_t>(d->settings.users.size()));
-		for (const UserSettings& u : d->settings.users) {
-			if (u.position == UserSettings::not_connected()) {
-				continue;
-			}
-			if (participant == 0) {
-				return u;
-			}
-			--participant;
-		}
-		NEVER_HERE();
-	}
-
-	int32_t participant_to_playerindex(int16_t participant) const {
-		if (participant >= human_user_count) {
-			// AI
-			participant -= human_user_count;
-//printf("bbb %i %i %i\n", participant, d->computerplayers[participant]->player_number(), pm->get_number_of_players());
-//assert(d->computerplayers[participant]->player_number() <= pm->get_number_of_players());
-			return d->computerplayers[participant]->player_number();
-		} else {
-			// No useful result possible for observers or semi-connected users
-
-			assert(participant_to_user(participant).position <= UserSettings::highest_playernum());
-//printf("aaa %i %i %i\n", participant, d->settings.users[participant].position, pm->get_number_of_players());
-// Useless, vector has always max size: assert(d->settings.users[participant].position <= pm->get_number_of_players());
-			// .position is the index within d->settings.players and also
-			// as .position+1 the index inside d->game->player_manager()
-			return participant_to_user(participant).position + 1;
-		}
-	}
-
-	const Widelands::Player* participant_to_player(int16_t participant) const {
-		assert(participant < get_participant_count());
-		assert(d);
-		assert(d->game);
-		const Widelands::PlayersManager *pm = d->game->player_manager();
-		assert(pm);
-		const int32_t playerindex = participant_to_playerindex(participant);
-		assert(playerindex > 0);
-		const Widelands::Player *p = pm->get_player(playerindex);
-		assert(p);
-		return p;
-	}
-
-	//GameHost* h;
-	GameHostImpl* d;
-	/// The highest participant number that represents a human user.
-	/// Higher numbers represent AIs
-	mutable int16_t human_user_count;
-};
-
 GameHost::GameHost(const std::string& playername, bool internet)
    : d(new GameHostImpl(this)), internet_(internet), forced_pause_(false) {
 	log("[Host]: starting up.\n");
 
 	d->localplayername = playername;
-	d->set_participant_list(new HostParticipantProvider(/*this,*/ d));
+	assert(d->game != nullptr);
+	d->set_participant_list(new ClientParticipantList(&(d->settings), d->game, &(d->computerplayers), d->localplayername));
 
 	// create a listening socket
 	if (internet) {
@@ -1077,14 +914,17 @@ void GameHost::send(ChatMessage msg) {
  *   -   -2 if the host is the client (has no client number)
  */
 int32_t GameHost::check_client(const std::string& name) {
+printf("check_client() %s\n", name.c_str());
 	// Check if the client is the host him-/herself
 	if (d->localplayername == name) {
+printf("check_client() is host\n");
 		return -2;
 	}
 
 	// Search for the client
 	uint16_t i = 0;
 	uint32_t client = 0;
+printf("check_client() #users=%lu\n", d->settings.users.size());
 	for (; i < d->settings.users.size(); ++i) {
 		const UserSettings& user = d->settings.users.at(i);
 		if (user.position == UserSettings::not_connected()) {
@@ -1095,17 +935,21 @@ int32_t GameHost::check_client(const std::string& name) {
 			break;
 		}
 	}
+printf("check_client() userID=%u\n", i);
 	if (i < d->settings.users.size()) {
 		for (; client < d->clients.size(); ++client) {
 			if (d->clients.at(client).usernum == static_cast<int16_t>(i)) {
 				break;
 			}
 		}
+printf("check_client() #clients=%lu clientid=%u\n", d->clients.size(), client);
 		if (client >= d->clients.size()) {
 			throw wexception("WARNING: user was found but no client is connected to it!\n");
 		}
+printf("check_client() found client %u\n", client);
 		return client;  // client found
 	} else {
+printf("check_client() no client found\n");
 		return -1;  // no client found
 	}
 }

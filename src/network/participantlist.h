@@ -22,6 +22,21 @@
 
 #include <string>
 
+#include <boost/signals2/signal.hpp>
+
+#include "logic/widelands.h"
+
+// Avoid as many includes as possible
+class GameSettings;
+class UserSettings;
+class ComputerPlayer;
+class RGBColor;
+
+namespace Widelands {
+	class Game;
+	class Player;
+}
+
 //#include "logic/widelands.h"
 
 /// Base class interface to provide access to the lists of participants to the UI.
@@ -135,6 +150,40 @@ public:
 	 */
 	boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
 };
+
+/// Implementation for use in GameHost and GameClient
+struct ClientParticipantList : public ParticipantList {
+	ClientParticipantList(GameSettings* settings, Widelands::Game* game,
+				std::vector<ComputerPlayer*>* computerplayers, const std::string& localplayername);
+
+	// Overrides from base class
+	virtual int16_t get_participant_count() const override;
+	virtual ParticipantType get_participant_type(int16_t participant) const override;
+	virtual Widelands::TeamNumber get_participant_team(int16_t participant) const override;
+	virtual const std::string& get_participant_name(int16_t participant) const override;
+	virtual const std::string& get_local_playername() const override;
+	virtual bool get_participant_defeated(int16_t participant) const override;
+	virtual const RGBColor& get_participant_color(int16_t participant) const override;
+	virtual bool is_ingame() const override;
+	virtual uint8_t get_participant_ping(int16_t participant) const override;
+
+private:
+
+	// TODO: Document
+	const UserSettings& participant_to_user(int16_t participant) const;
+	int32_t participant_to_playerindex(int16_t participant) const;
+	const Widelands::Player* participant_to_player(int16_t participant) const;
+
+	//GameClientImpl* d;
+	GameSettings* settings_;
+	Widelands::Game* game_;
+	std::vector<ComputerPlayer*>* computerplayers_;
+	const std::string& localplayername_;
+	/// The highest participant number that represents a human user.
+	/// Higher numbers represent AIs
+	mutable int16_t human_user_count_;
+};
+
 
 #endif // WL_NETWORK_PARTICIPANTLIST_H
 
