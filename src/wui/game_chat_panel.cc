@@ -83,34 +83,14 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 		// Fill the dropdown menu with usernames
 		prepare_recipients();
 		// In the dropdown, select the entry that was used last time the menu was open
+		// If the recipient no longer exists, this will fail and @all will still be selected
 		recipient_dropdown_.select(chat_.last_recipient_);
 		// Insert "@playername " into the edit field if the dropdown has a selection
 		set_recipient();
 		chat_.participants_->participants_updated.connect([this]() {
-				// TODO: Move this into own method
 				// Create new contents for dropdown
 				prepare_recipients();
-				// Get the current recipient
-				std::string recipient = "";
-				const std::string& text = editbox.text();
-				if (!text.empty() && text[0] == '@') {
-					// Get the recipient string including the first space
-					// If there is no space, return the whole string
-					const size_t pos_space = text.find(' ');
-					if (pos_space != std::string::npos) {
-						recipient = text.substr(0, pos_space + 1);
-					} else {
-						// Append a space since that increases the chance
-						// to get a match in the dropdown
-						recipient = text + ' ';
-					}
-				}
-				// Try to re-set the recipient
-				recipient_dropdown_.select(recipient);
-				if (recipient != recipient_dropdown_.get_selected()) {
-					recipient_dropdown_.set_errored(_("Unknown Recipient"));
-				}
-
+				select_recipient();
 			});
 	}
 	chat_message_subscriber_ =
@@ -233,7 +213,8 @@ void GameChatPanel::key_escape() {
 	editbox.set_text("");
 	// Re-set the current selection to clean up a possible error state
 	if (chat_.participants_ != nullptr) {
-		recipient_dropdown_.select(recipient_dropdown_.get_selected());
+		//recipient_dropdown_.select(recipient_dropdown_.get_selected());
+		recipient_dropdown_.select(chat_.last_recipient_);
 		set_recipient();
 	}
 	aborted();
@@ -246,32 +227,41 @@ void GameChatPanel::key_changed() {
 		return;
 	}
 
-	// If the last two characters are spaces, do an autocomplete
 	std::string str = editbox.text();
+
+	// Try to select the matching dropdown state
+	select_recipient();
+
+	// If the last two chars of the input are space, try to autocomplete the last word to a player name
+	// E.g., if input is "pl  " complete to "playername " if the start of the name is unique
+
 	if (str.size() < 3 || str[str.size() - 1] != ' ' || str[str.size() - 2] != ' ') {
 		return;
 	}
 
-	// If input is "pl  " complete to "playername ", if the start of the name is unique
-
-	// Extract the name to complete. If it starts with '@', remove the '@'
+	// Extract the name to complete
+	// find_last_of finds starts at the given pos and goes forward until it finds space or @
+	// -3 so we don't start searching in the double space chars at the end
 	size_t namepart_pos = str.find_last_of(" @", str.size() - 3);
 printf("namepart_pos1=%lu\n", namepart_pos);
 	if (namepart_pos == std::string::npos) {
+		// Not found, meaning the input only contains the name
 		namepart_pos = 0;
 	} else {
+		// Found something. Cut off the space / @
 		namepart_pos += 1;
 	}
-	// Also remove trailing spaces
+	// Extract part, also remove trailing spaces
 	const std::string namepart = str.substr(namepart_pos, str.size() - 2 - namepart_pos);
 printf("text=_%s_, part=_%s_ namepart_pos=%lu\n", str.c_str(), namepart.c_str(), namepart_pos);
 
 	if (namepart.empty()) {
-		// Nothing left. Maybe a single '@' or 3+ spaces in a row
+		// Nothing left to complete. Maybe a single '@' or 3+ spaces in a row
 		return;
 	}
+printf("namepart=%s\n", namepart.c_str());
 
-	// Count the number of equal chars ignoring case
+	// Helper function: Count the number of equal chars ignoring case
 	static const auto count_equal_chars = [] (const std::string& a, const std::string& b) {
 		const size_t len = std::min(a.size(), b.size());
 		for (size_t i = 0; i < len; ++i) {
@@ -283,23 +273,8 @@ printf("text=_%s_, part=_%s_ namepart_pos=%lu\n", str.c_str(), namepart.c_str(),
 
 	std::string candidate = "";
 
-	// Iterate over all possible completitions (i.e., usernames).
-	// For each, check whether they start with $namepart. If it does, store as candidate.
-	// If there already is a candidate, create a new candidate from the part that is
-	// the same for both candidates. (Note that the merged candidate might have wrong case,
-    // but that is fixed on the next completition)
-    const int16_t n_participants = chat_.participants_->get_participant_count();
-	//const std::string& local_name = chat_.participants_->get_local_playername();
-printf("namepart=%s\n", namepart.c_str());
-	for (auto i = 0; i < n_participants; ++i) {
-		if (chat_.participants_->get_participant_type(i) == ParticipantList::ParticipantType::kAI) {
-			// Skip AIs
-			continue;
-		}
-		const std::string& name = chat_.participants_->get_participant_name(i);
-		//if (name == local_name) {
-		//	continue;
-		//}
+	// Helper function: Compare the given names and extract a common prefix (if existing)
+	static const auto compare_names = [&namepart, &candidate] (const std::string& name) {
 		size_t equal_chars = count_equal_chars(namepart, name);
 printf("name=%s count=%lu\n", namepart.c_str(), equal_chars);
 		if (equal_chars == namepart.size()) {
@@ -318,6 +293,32 @@ printf("old_candidate=%s\n", candidate.c_str());
 			}
 printf("new_candidate=%s\n", candidate.c_str());
 		}
+	// Iterate over all possible completitions (i.e., usernames).
+	// For each, check whether they start with $namepart. If it does, store as candidate.
+	// If there already is a candidate, create a new candidate from the part that is
+	// the same for both candidates. (Note that the merged candidate might have wrong case,
+	// but that is fixed on the next completition)
+	const int16_t n_participants = chat_.participants_->get_participant_count();
+	const std::string& local_name = chat_.participants_->get_local_playername();
+	for (int16_t i = 0; i < n_participants; ++i) {
+		if (chat_.participants_->get_participant_type(i) == ParticipantList::ParticipantType::kAI) {
+			// Skip AIs
+			continue;
+		}
+		const std::string& name = chat_.participants_->get_participant_name(i);
+		if (namepart_pos == 1 && str[0] == '@' && name == local_name) {
+			// Don't autocomplete to our own username when searching for a recipient
+			// Still do the autocomplete when in the middle of the message
+			continue;
+		}
+		compare_names(name);
+	}
+	// Also offer to complete to "@team" but only when at the beginning of the input
+	if (namepart_pos == 1 && str[0] == '@') {
+		// There could be a problem if there really is a player called "team"...
+		// The messages would reacht the player and not the team in that case.
+		// Not quite sure how to fix this
+		compare_names("team");
 	}
 
 	// If we have a candidate, set the new text for the input box
@@ -325,9 +326,12 @@ printf("new_candidate=%s\n", candidate.c_str());
 		str.replace(namepart_pos, std::string::npos, candidate);
 printf("str=%s\n", str.c_str());
 		editbox.set_text(str);
+		// Try to select the matching dropdown state again
+		select_recipient();
 	}
 }
 
+// Set the recipient in the input box to whatever is selected in the dropdown
 void GameChatPanel::set_recipient() {
 	assert(chat_.participants_ != nullptr);
 	assert(recipient_dropdown_.has_selection());
@@ -397,6 +401,33 @@ void GameChatPanel::prepare_recipients() {
 					"images/players/genstats_player.png"));
 		}
 	}
+}
+
+// Tries to select the recipient entered in the input field in the dropdown
+// Sets errored-state otherwise. Returns whether recipient could be selected
+bool GameChatPanel::select_recipient() {
+	// Get the current recipient
+	std::string recipient = "";
+	const std::string& text = editbox.text();
+	if (!text.empty() && text[0] == '@') {
+		// Get the recipient string including the first space
+		// If there is no space, return the whole string
+		const size_t pos_space = text.find(' ');
+		if (pos_space != std::string::npos) {
+			recipient = text.substr(0, pos_space + 1);
+		} else {
+			// Append a space since that increases the chance
+			// to get a match in the dropdown
+			recipient = text + ' ';
+		}
+	}
+	// Try to re-set the recipient
+	recipient_dropdown_.select(recipient);
+	if (recipient != recipient_dropdown_.get_selected()) {
+		recipient_dropdown_.set_errored(_("Unknown Recipient"));
+		return false;
+	}
+	return true;
 }
 
 /**

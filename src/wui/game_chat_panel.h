@@ -64,6 +64,7 @@ private:
 	void key_changed();
 	void set_recipient();
 	void prepare_recipients();
+	bool select_recipient();
 
 	ChatProvider& chat_;
 	UI::MultilineTextarea chatbox;
