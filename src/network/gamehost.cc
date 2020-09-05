@@ -516,7 +516,6 @@ GameHost::GameHost(const std::string& playername, bool internet)
 	log("[Host]: starting up.\n");
 
 	d->localplayername = playername;
-	assert(d->game != nullptr);
 	d->set_participant_list(new ClientParticipantList(&(d->settings), d->game, &(d->computerplayers), d->localplayername));
 
 	// create a listening socket

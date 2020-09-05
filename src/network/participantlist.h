@@ -153,7 +153,8 @@ public:
 
 /// Implementation for use in GameHost and GameClient
 struct ClientParticipantList : public ParticipantList {
-	ClientParticipantList(GameSettings* settings, Widelands::Game* game,
+	// Note that game takes a reference to the pointer
+	ClientParticipantList(GameSettings* settings, Widelands::Game*& game,
 				std::vector<ComputerPlayer*>* computerplayers, const std::string& localplayername);
 
 	// Overrides from base class
@@ -176,7 +177,7 @@ private:
 
 	//GameClientImpl* d;
 	GameSettings* settings_;
-	Widelands::Game* game_;
+	Widelands::Game*& game_;
 	std::vector<ComputerPlayer*>* computerplayers_;
 	const std::string& localplayername_;
 	/// The highest participant number that represents a human user.

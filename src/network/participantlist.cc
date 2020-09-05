@@ -6,12 +6,12 @@
 #include "logic/playersmanager.h"
 #include "logic/player.h"
 
-ClientParticipantList::ClientParticipantList(GameSettings* settings, Widelands::Game* game,
+ClientParticipantList::ClientParticipantList(GameSettings* settings, Widelands::Game*& game,
 		std::vector<ComputerPlayer*>* computerplayers, const std::string& localplayername)
 			: settings_(settings), game_(game), computerplayers_(computerplayers),
 				localplayername_(localplayername), human_user_count_(0) {
 	assert(settings_ != nullptr);
-	assert(game_ != nullptr);
+	// game_ might still be a nullpointer around here
 	// computerplayers_ is okay to be nullptr
 }
 
@@ -181,6 +181,7 @@ int32_t ClientParticipantList::participant_to_playerindex(int16_t participant) c
 
 const Widelands::Player* ClientParticipantList::participant_to_player(int16_t participant) const {
 	assert(participant < get_participant_count());
+	assert(game_ != nullptr);
 	const Widelands::PlayersManager *pm = game_->player_manager();
 	assert(pm);
 	const int32_t playerindex = participant_to_playerindex(participant);

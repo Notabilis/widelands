@@ -206,7 +206,6 @@ GameClient::GameClient(const std::pair<NetAddress, NetAddress>& host,
 
 	d->internet_ = internet;
 
-	assert(d->game != nullptr);
 	d->participants.reset(new ClientParticipantList(&(d->settings), d->game, nullptr, d->localplayername));
 	participants_ = d->participants.get();
 
