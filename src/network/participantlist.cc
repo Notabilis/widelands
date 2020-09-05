@@ -6,8 +6,8 @@
 #include "logic/playersmanager.h"
 #include "logic/player.h"
 
-ClientParticipantList::ClientParticipantList(GameSettings* settings, Widelands::Game*& game,
-		std::vector<ComputerPlayer*>* computerplayers, const std::string& localplayername)
+ClientParticipantList::ClientParticipantList(const GameSettings* settings, Widelands::Game*& game,
+		const std::vector<ComputerPlayer*>* computerplayers, const std::string& localplayername)
 			: settings_(settings), game_(game), computerplayers_(computerplayers),
 				localplayername_(localplayername), human_user_count_(0) {
 	assert(settings_ != nullptr);
