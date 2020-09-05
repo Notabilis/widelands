@@ -187,29 +187,32 @@ void GameChatPanel::key_enter() {
 
 	const std::string& str = editbox.text();
 	if (str.size()) {
-		const size_t pos_first_space = str.find(' ');
-
-		std::string recipient;
-		// Reset message to only the recipient
-		if (str[0] == '@') {
-			recipient = str.substr(0, pos_first_space + 1);
-		}
-
-		// Make sure we have a chat message to send and it is more than just the recipient
-		// Either it has no recipient or there is text behind the recipient
-		if (str[0] != '@' || pos_first_space < str.size() - 1) {
-			chat_.send(str);
-			chat_.last_recipient_ = recipient;
-		}
-
-		editbox.set_text(recipient);
-		// Set selection of dropdown to entered recipient, if possible
 		if (chat_.participants_ != nullptr) {
+			const size_t pos_first_space = str.find(' ');
+
+			std::string recipient;
+			// Reset message to only the recipient
+			if (str[0] == '@') {
+				recipient = str.substr(0, pos_first_space + 1);
+			}
+
+			// Make sure we have a chat message to send and it is more than just the recipient
+			// Either it has no recipient or there is text behind the recipient
+			if (str[0] != '@' || pos_first_space < str.size() - 1) {
+				chat_.send(str);
+				chat_.last_recipient_ = recipient;
+			}
+
+			editbox.set_text(recipient);
+			// Set selection of dropdown to entered recipient, if possible
 			recipient_dropdown_.select(recipient);
 			if (recipient_dropdown_.get_selected() != recipient) {
 				// Seems the user is writing to someone unknown
 				recipient_dropdown_.set_errored(_("Unknown Recipient"));
 			}
+		} else {
+			chat_.send(str);
+			editbox.set_text("");
 		}
 	}
 	sent();
