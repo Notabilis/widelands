@@ -206,9 +206,6 @@ GameClient::GameClient(const std::pair<NetAddress, NetAddress>& host,
 
 	d->internet_ = internet;
 
-	d->participants.reset(new ClientParticipantList(&(d->settings), d->game, nullptr, d->localplayername));
-	participants_ = d->participants.get();
-
 	if (internet) {
 		assert(!gamename.empty());
 		d->net = NetClientProxy::connect(host.first, gamename);
@@ -241,6 +238,9 @@ GameClient::GameClient(const std::pair<NetAddress, NetAddress>& host,
 
 	// Get the default win condition script
 	d->settings.win_condition_script = d->settings.win_condition_scripts.front();
+
+	d->participants.reset(new ClientParticipantList(&(d->settings), d->game, nullptr, d->localplayername));
+	participants_ = d->participants.get();
 }
 
 GameClient::~GameClient() {

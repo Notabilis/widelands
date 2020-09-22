@@ -13,9 +13,9 @@ ClientParticipantList::ClientParticipantList(const GameSettings* settings, Widel
 	assert(settings_ != nullptr);
 	// game_ might still be a nullpointer around here
 	// computerplayers_ is okay to be nullptr
+	// The pointer referenced by game_ might be undefined here
 #ifndef NDEBUG
-	// Get initial participant count
-	get_participant_count();
+	participant_count_ = 0;
 #endif // NDEBUG
 }
 

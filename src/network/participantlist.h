@@ -158,15 +158,15 @@ struct ClientParticipantList : public ParticipantList {
 				const std::vector<ComputerPlayer*>* computerplayers, const std::string& localplayername);
 
 	// Overrides from base class
-	virtual int16_t get_participant_count() const override;
-	virtual ParticipantType get_participant_type(int16_t participant) const override;
-	virtual Widelands::TeamNumber get_participant_team(int16_t participant) const override;
-	virtual const std::string& get_participant_name(int16_t participant) const override;
-	virtual const std::string& get_local_playername() const override;
-	virtual bool get_participant_defeated(int16_t participant) const override;
-	virtual const RGBColor& get_participant_color(int16_t participant) const override;
-	virtual bool is_ingame() const override;
-	virtual uint8_t get_participant_ping(int16_t participant) const override;
+	int16_t get_participant_count() const override;
+	ParticipantType get_participant_type(int16_t participant) const override;
+	Widelands::TeamNumber get_participant_team(int16_t participant) const override;
+	const std::string& get_participant_name(int16_t participant) const override;
+	const std::string& get_local_playername() const override;
+	bool get_participant_defeated(int16_t participant) const override;
+	const RGBColor& get_participant_color(int16_t participant) const override;
+	bool is_ingame() const override;
+	uint8_t get_participant_ping(int16_t participant) const override;
 
 private:
 
