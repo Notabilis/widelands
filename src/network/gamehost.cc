@@ -444,7 +444,7 @@ struct GameHostImpl {
 	std::unique_ptr<NetHostInterface> net;
 
 	/// List of connected clients. Note that clients are not in the same
-	/// order as players. In fact, a client must not be assigned to a player.
+	/// order as players. In fact, a client may not be assigned to a player.
 	std::vector<Client> clients;
 
 	/// The game itself; only non-null while game is running
@@ -813,8 +813,178 @@ void GameHost::send_player_command(Widelands::PlayerCommand* pc) {
  */
 void GameHost::send(ChatMessage msg) {
 	if (msg.msg.empty()) {
+		// No message: Nothing to do
 		return;
 	}
+
+	// The set containing all receivers of the message.
+	// Being a set ensures that each one only gets it once
+	std::set<int32_t> recipients;
+	// Whether this is a public (0), personal (1), or team (2) message (see protocol definition)
+	int msg_type = 0;
+
+	// Figure out who to send the message to
+	if (msg.recipient.empty()) {
+		// No recipient, so it is a broadcast. Send to everyone
+		// Nothing to do here
+	} else {
+		msg_type = 1;
+		// Add the sender to the recipients so it gets a copy of the message
+		if (msg.sender.empty()) {
+			// Since there is no sender, it must be a system message
+			assert(msg.playern == -2);
+		} else {
+			// No system message, so get the sending client
+			assert(msg.playern != -2);
+			const int32_t sender_id = check_client(msg.sender);
+			assert(sender_id != -1);
+			// The sender will get a copy of the message
+			recipients.insert(sender_id);
+		}
+
+		// The message is directed somewhere. Figure out where
+		if (msg.recipient != "team") {
+			// A single player is the recipient. Find it
+			const int32_t client_id = check_client(msg.recipient);
+			assert(client_id >= -3);
+			if (client_id == -1) {
+				// Error: Can't find given recipient, so we only will send an error message
+				// back to the sender
+				msg.sender.clear();
+				msg.playern = -2;
+				msg.msg = "Failed to send message: Recipient \"";
+				msg.msg += msg.recipient + "\" could not be found!";
+			} else {
+				// Its either a player we found or the host (-2). Either way, add it
+				recipients.insert(client_id);
+			}
+		} else {
+			// Its a team message
+			msg_type = 2;
+			// Figure out who is in a team with the recipient and add them
+printf("Its for the team!\n");
+			// Figure out the team of the sender
+			if (msg.playern == UserSettings::none()) {
+printf("its from an observer\n");
+				// The message is from an observer. Find all other observers and send it to them
+				if (d->settings.playernum == UserSettings::none()) {
+					// The host is (one of the) observers
+					recipients.insert(-2);
+				}
+				for (uint16_t i = 0; i < d->settings.users.size(); ++i) {
+					const UserSettings& user = d->settings.users.at(i);
+					if (user.position != UserSettings::none()) {
+						continue;
+					}
+printf("found observer _%s_\n", user.name.c_str());
+					// Search for the matching network connection
+					for (uint32_t client = 0; client < d->clients.size(); ++client) {
+						if (d->clients.at(client).usernum == static_cast<int16_t>(i)) {
+							// Found the matching connection, store it for later use
+							recipients.insert(client);
+						}
+					}
+				}
+			} else {
+
+printf("msg.playern = %i\n", msg.playern);
+printf("clients.size() = %lu\n", d->clients.size());
+assert(msg.playern >= 0);
+if (d->clients.size() > static_cast<size_t>(msg.playern)) {
+	printf("playernum=%i usernum=%i\n", d->clients.at(msg.playern).playernum, d->clients.at(msg.playern).usernum);
+}
+//d->clients.at(client).playernum
+//	uint8_t playernum;
+//	int16_t usernum;
+
+printf("players.size() = %lu\n", d->settings.players.size());
+if (d->settings.players.size() > static_cast<size_t>(msg.playern)) {
+/// this one probably
+	printf("msg.player name=%s team=%i\n", d->settings.players[msg.playern].name.c_str(), d->settings.players[msg.playern].team);
+}
+if (d->clients.size() > static_cast<size_t>(msg.playern) && d->settings.players.size() > d->clients.at(msg.playern).playernum) {
+	printf("playernum name=%s team=%i\n", d->settings.players[d->clients.at(msg.playern).playernum].name.c_str(), d->settings.players[d->clients.at(msg.playern).playernum].team);
+}
+if (d->clients.size() > static_cast<size_t>(msg.playern) && static_cast<long int>(d->settings.players.size()) > d->clients.at(msg.playern).usernum) {
+	printf("usernumnum name=%s team=%i\n", d->settings.players[d->clients.at(msg.playern).usernum].name.c_str(), d->settings.players[d->clients.at(msg.playern).usernum].team);
+}
+
+				const Widelands::TeamNumber team_sender = d->settings.players[msg.playern].team;
+printf("is in team %u\n", team_sender);
+				// Team 0 is the "no team" option. If the sender has no team, there is no recipient
+				if (team_sender != 0) {
+					for (size_t i = 0; i < d->settings.players.size(); ++i) {
+	printf("  name=%s team=%i\n", d->settings.players[i].name.c_str(), d->settings.players[i].team);
+						if (static_cast<int16_t>(i) == msg.playern) {
+							// Don't send to ourselves
+							continue;
+						}
+						const PlayerSettings& player = d->settings.players[i];
+	/// The .name of the player is something strange and there might be multiple humans for one PlayerSettings (not sure)
+	printf("checking _%s_\n", player.name.c_str());
+	// Does it work to store the playernumber i and check the Client's array for all clients with this number?
+						//if (!player.ai.empty()) {
+						if (player.state != PlayerSettings::State::kHuman) {
+							// We don't send messages to AIs or empty players
+	printf("is no human\n");
+							continue;
+						}
+						if (player.team == team_sender)  {
+	printf("is in the right team\n");
+	printf("i = %lu  playernum=%i\n", i, d->settings.playernum);
+							if (d->settings.playernum == static_cast<int16_t>(i)) {
+								// The host is (one of the) users of this player
+								recipients.insert(-2);
+							}
+							// Search for the matching network connection
+							for (uint32_t client = 0; client < d->clients.size(); ++client) {
+								if (d->clients.at(client).playernum == static_cast<int16_t>(i)) {
+									// Found the matching connection, store it for later use
+	printf("#client = %i\n", client);
+									recipients.insert(client);
+									// Don't break the loop, there might be multiple
+									// clients for one (shared) player
+								}
+							}
+						}
+					}
+				} // end team is not "no team"
+			} // end team is not observer
+/// TODO(Notabilis): Disallow the playername "team"
+		} // end team message
+	} // end directed message
+
+	// Assemble message packet
+	SendPacket packet;
+	packet.unsigned_8(NETCMD_CHAT);
+	packet.signed_16(msg.playern);
+	packet.string(msg.sender);
+	packet.string(msg.msg);
+	packet.unsigned_8(msg_type);
+	packet.string(msg.recipient);
+
+	// Send to either everyone or the found recipients
+	if (recipients.empty()) {
+printf("Broadcasting message to all\n");
+		// Receive it on the host
+		d->chat.receive(msg);
+		// Send to all clients
+		broadcast(packet);
+	} else {
+		for (const int32_t clientnum : recipients) {
+			if (clientnum >= 0) {
+printf("sending message to clientnum=%i\n", clientnum);
+				d->net->send(d->clients.at(clientnum).sock_id, packet);
+			} else {
+printf("sending message to host\n");
+				assert(clientnum == -2);
+				// Send to host player
+				d->chat.receive(msg);
+			}
+		}
+	}
+
+#ifdef OLD_CODE
 
 	if (msg.recipient.empty()) {
 		SendPacket packet;
@@ -827,14 +997,182 @@ void GameHost::send(ChatMessage msg) {
 
 		d->chat.receive(msg);
 	} else {  //  personal messages
+printf("send from %s (%i) to _%s_: _%s_\n", msg.sender.c_str(), msg.playern, msg.recipient.c_str(), msg.msg.c_str());
 		SendPacket packet;
-		packet.unsigned_8(NETCMD_CHAT);
 
-		// Is this a pm for the host player?
-		if (d->localplayername == msg.recipient) {
+		if (msg.recipient == "team") {
+			// It is a message to the players team
+printf("Its for the team!\n");
+			std::vector<int32_t> recipients;
+
+			// Figure out the team of the sender
+			if (msg.playern == UserSettings::none()) {
+printf("its from an observer\n");
+				// The message is from an observer. Find all other observers and send it to them
+				for (uint16_t i = 0; i < d->settings.users.size(); ++i) {
+					const UserSettings& user = d->settings.users.at(i);
+					if (user.position != UserSettings::none()) {
+						continue;
+					}
+printf("found observer _%s_\n", user.name.c_str());
+					// Don't send to ourselves
+					if (user.name == msg.sender) {
+						continue;
+					}
+					// Search for the matching network connection
+					for (uint32_t client = 0; client < d->clients.size(); ++client) {
+						if (d->clients.at(client).usernum == static_cast<int16_t>(i)) {
+							// Found the matching connection, store it for later use
+							recipients.push_back(client);
+						}
+					}
+				}
+			} else {
+
+printf("msg.playern = %i\n", msg.playern);
+printf("clients.size() = %lu\n", d->clients.size());
+if (d->clients.size() > msg.playern) {
+	printf("playernum=%i usernum=%i\n", d->clients.at(msg.playern).playernum, d->clients.at(msg.playern).usernum);
+}
+//d->clients.at(client).playernum
+//	uint8_t playernum;
+//	int16_t usernum;
+
+printf("players.size() = %lu\n", d->settings.players.size());
+if (d->settings.players.size() > msg.playern) {
+/// this one probably
+	printf("msg.player name=%s team=%i\n", d->settings.players[msg.playern].name.c_str(), d->settings.players[msg.playern].team);
+}
+if (d->clients.size() > msg.playern && d->settings.players.size() > d->clients.at(msg.playern).playernum) {
+	printf("playernum name=%s team=%i\n", d->settings.players[d->clients.at(msg.playern).playernum].name.c_str(), d->settings.players[d->clients.at(msg.playern).playernum].team);
+}
+if (d->clients.size() > msg.playern && d->settings.players.size() > d->clients.at(msg.playern).usernum) {
+	printf("usernumnum name=%s team=%i\n", d->settings.players[d->clients.at(msg.playern).usernum].name.c_str(), d->settings.players[d->clients.at(msg.playern).usernum].team);
+}
+
+				const Widelands::TeamNumber team_sender = d->settings.players[msg.playern].team;
+printf("is in team %u\n", team_sender);
+// NOCOM: Capture case of "no team". In that case, only send back to oneself
+				for (size_t i = 0; i < d->settings.players.size(); ++i) {
+					if (static_cast<int16_t>(i) == msg.playern) {
+						// Don't send to ourselves
+						continue;
+					}
+					const PlayerSettings& player = d->settings.players[i];
+printf("checking _%s_\n", player.name.c_str());
+/// NOCOM: the .name of the player is something strange and there might be multiple humans for one PlayerSettings (not sure)
+// Does it work to store the playernumber i and check the Client's array for all clients with this number?
+					//if (!player.ai.empty()) {
+					if (player.state != PlayerSettings::State::kHuman) {
+						// We don't send messages to AIs or empty players
+printf("is no human\n");
+						continue;
+					}
+					if (player.team == team_sender)  {
+printf("is in the right team\n");
+						//const int32_t n_client = check_client(player.name);
+//printf("#client = %i\n", n_client);
+						//recipients.push_back(n_client);
+						// Search for the matching network connection
+						for (uint32_t client = 0; client < d->clients.size(); ++client) {
+							if (d->clients.at(client).playernum == static_cast<int16_t>(i)) {
+								// Found the matching connection, store it for later use
+printf("#client = %i\n", client);
+								recipients.push_back(client);
+								// Don't break, there might be multiple clients for one (shared) player
+							}
+						}
+					}
+				}
+/*===================
+Currently the server crashes when the client sends a team message. Crashes since send() writes
+the size of the data packet into the first bytes but the packet was never initialized / used.
+Figure out why it wasn't.
+Maybe because check_client() in line 1012 cannot find "team"?
+===================
+*/
+// NOCOM: d->game might not be defined when this is called
+// Fixed with the code above
+				// The sender is no observer but a player, so it gets a bit more complicated.
+				// Get its team
+/*				assert(d);
+				assert(d->game);
+				const Widelands::PlayersManager *pm = d->game->player_manager();
+				assert(pm);
+				const Widelands::Player *p_sender = pm->get_player(msg.playern + 1);
+				assert(p_sender);
+				const Widelands::TeamNumber team = p_sender->team_number();
+printf("is in team %u\n", team);
+				// Iterate over the players and store all that are in the same team
+				for (int32_t i = 0; i < kMaxPlayers; ++i) {
+					const Widelands::Player* p = pm->get_player(i + 1);
+					if (p == nullptr) {
+						continue;
+					}
+printf("checking _%s_\n", p->get_name().c_str());
+					if (!(p->get_ai().empty())) {
+						// It is an AI, no use sending it messages
+						continue;
+					}
+printf("is no ai\n");
+					// Found a non-empty player slot
+					if (p->team_number() == team) {
+printf("is in the right team\n");
+						// TODO: There might be a better way to get the client number...
+						recipients.push_back(check_client(p->get_name()));
+					}
+				}
+*/
+			}
+
+/*
+	for (const UserSettings& u : settings_->users) {
+		if (u.position == UserSettings::not_connected()) {
+			continue;
+		}
+		if (participant == 0) {
+			const int32_t playerindex = u.position + 1;
+		}
+		--participant;
+	}
+	const Widelands::PlayersManager *pm = game_->player_manager();
+	const Widelands::Player *p = pm->get_player(playerindex);
+	p->team_number()
+
+
+		for (; i < d->settings.users.size(); ++i) {
+			const UserSettings& user = d->settings.users.at(i);
+			if (user.position == UserSettings::not_connected()) {
+				// Ignore users thats are not yet fully or not anymore connected
+				continue;
+			}
+			if (user.name == name) {
+				break;
+			}
+		}
+*/
+
+/// TODO: Handle case of sending to host player
+
+			// Find all team members and send them the message
+			for (int32_t recipient : recipients) {
+				packet.reset();
+				packet.unsigned_8(NETCMD_CHAT);
+				packet.signed_16(msg.playern);
+				packet.string(msg.sender);
+				packet.string(msg.msg);
+				packet.unsigned_8(2);
+				packet.string(msg.recipient);
+				d->net->send(d->clients.at(recipient).sock_id, packet);
+			}
+/// TODO(Notabilis): Disallow the playername "team"
+		} else if (d->localplayername == msg.recipient) {
+			// It is a pm for the host player
 			d->chat.receive(msg);
 			// Write the SendPacket - will be used below to show that the message
 			// was received.
+			packet.reset();
+			packet.unsigned_8(NETCMD_CHAT);
 			packet.signed_16(msg.playern);
 			packet.string(msg.sender);
 			packet.string(msg.msg);
@@ -842,7 +1180,10 @@ void GameHost::send(ChatMessage msg) {
 			packet.string(msg.recipient);
 		} else {  // Find the recipient
 			int32_t clientnum = check_client(msg.recipient);
+printf("check_client() in line 1012: %i\n", clientnum);
 			if (clientnum >= 0) {
+				packet.reset();
+				packet.unsigned_8(NETCMD_CHAT);
 				packet.signed_16(msg.playern);
 				packet.string(msg.sender);
 				packet.string(msg.msg);
@@ -862,10 +1203,13 @@ void GameHost::send(ChatMessage msg) {
 					d->chat.receive(err);
 					return;  // nothing left to do!
 				}
+				packet.reset();
+				packet.unsigned_8(NETCMD_CHAT);
 				packet.signed_16(-2);  // System message
 				packet.string("");
 				packet.string(fail);
 				packet.unsigned_8(0);
+BUG HERE: The recipient is missing:   packet.string(msg.recipient);
 			}
 		}
 
@@ -905,6 +1249,7 @@ void GameHost::send(ChatMessage msg) {
 			}
 		}
 	}
+#endif // OLD_CODE
 }
 
 /**
@@ -944,6 +1289,7 @@ printf("check_client() userID=%u\n", i);
 		}
 printf("check_client() #clients=%lu clientid=%u\n", d->clients.size(), client);
 		if (client >= d->clients.size()) {
+			// This should probably not happen since we checked whether the user is connected above
 			throw wexception("WARNING: user was found but no client is connected to it!\n");
 		}
 printf("check_client() found client %u\n", client);
@@ -2268,12 +2614,15 @@ void GameHost::handle_chat(Client& client, RecvPacket& r) {
 	ChatMessage c(r.string());
 	c.playern = d->settings.users.at(client.usernum).position;
 	c.sender = d->settings.users.at(client.usernum).name;
+printf("handle_chat from %s (%i): _%s_\n", c.sender.c_str(), c.playern, c.msg.c_str());
+printf("clientnum = %i\n", client.usernum);
 	if (c.msg.size() && *c.msg.begin() == '@') {
 		// Personal message
 		std::string::size_type const space = c.msg.find(' ');
 		if (space >= c.msg.size() - 1) {
 			return;  // No Message after '@<User>'
 		}
+printf("has a recipient: _%s_\n", c.recipient.c_str());
 		c.recipient = c.msg.substr(1, space - 1);
 		c.msg = c.msg.substr(space + 1);
 	}

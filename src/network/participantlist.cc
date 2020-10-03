@@ -48,6 +48,7 @@ else printf("get_count() not using\n");
 		n_ais = computerplayers_->size();
 	} else if (game_) {
 		const Widelands::PlayersManager *pm = game_->player_manager();
+		assert(pm);
 		const uint8_t n_players = pm->get_number_of_players();
 		for (int32_t i = 0; i < kMaxPlayers; ++i) {
 			if (n_ais >= n_players) {

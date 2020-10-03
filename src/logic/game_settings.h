@@ -141,7 +141,7 @@ struct GameSettings {
 	/// Savegame slots and certain scenario slots can't be closed
 	bool uncloseable(PlayerSlot slot) const;
 
-	/// Number of player position
+	/// Number of player position of the host player
 	int16_t playernum;
 	/// Number of users entry
 	int8_t usernum;
@@ -164,7 +164,7 @@ struct GameSettings {
 	/// Is a savegame selected for loading?
 	bool savegame;
 
-	// Is all fighting forbidden?
+	/// Is all fighting forbidden?
 	bool peaceful;
 
 	/// List of tribes that players are allowed to choose

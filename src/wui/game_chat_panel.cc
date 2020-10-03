@@ -325,6 +325,7 @@ printf("new_candidate=%s\n", candidate.c_str());
 		compare_names(name);
 	}
 	// Also offer to complete to "@team" but only when at the beginning of the input
+	// TODO(Notabilis): Only do this if the player is not alone in a team / in a team at all
 	if (namepart_pos == 1 && str[0] == '@') {
 		// There could be a problem if there really is a player called "team"...
 		// The messages would reacht the player and not the team in that case.
@@ -385,6 +386,7 @@ void GameChatPanel::prepare_recipients() {
 	// Select the "All" entry by default. Do *not* use the add() parameter for it since
 	// it calls the listener for selected()
 	recipient_dropdown_.select("");
+	// TODO(Notabilis): Hide the "team" entry if the player is alone in a team / in no team
 	recipient_dropdown_.add(_("Team"), "@team ",
 		g_gr->images().get("images/wui/buildings/menu_list_workers.png"));
 
