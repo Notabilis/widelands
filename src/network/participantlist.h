@@ -82,7 +82,7 @@ public:
 	 * Returns the team of the participant when the participant is a player.
 	 * A value of \c 0 indicates that the participant has no team.
 	 * For observers, the result is undefined.
-	 * @warning Result is undefined when not ingame.
+	 //* @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant to get data about.
 	 * @return The team of player used by the participant.
 	 */
@@ -170,7 +170,7 @@ struct ClientParticipantList : public ParticipantList {
 
 private:
 
-	// TODO: Document
+	// TODO(Notabilis): Document
 	const UserSettings& participant_to_user(int16_t participant) const;
 	int32_t participant_to_playerindex(int16_t participant) const;
 	const Widelands::Player* participant_to_player(int16_t participant) const;

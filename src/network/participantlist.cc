@@ -83,14 +83,20 @@ ParticipantList::ParticipantType ClientParticipantList::get_participant_type(int
 }
 
 Widelands::TeamNumber ClientParticipantList::get_participant_team(int16_t participant) const {
-	assert(is_ingame());
-	return participant_to_player(participant)->team_number();
+	const size_t index = participant_to_playerindex(participant);
+	assert(index <= settings_->players.size());
+	const Widelands::TeamNumber team = settings_->players[index - 1].team;
+	//assert(is_ingame());
+	if (is_ingame()) {
+		assert(team == participant_to_player(participant)->team_number());
+	}
+	return team;
 }
 
 const std::string& ClientParticipantList::get_participant_name(int16_t participant) const {
 	if (participant < human_user_count_) {
 		// We can't use the Player entry for normal users since it isn't the selected user name
-		// There is ... something done with it and it is also modified when users share a player
+		// but instead a combined name of all the users for this player
 		return participant_to_user(participant).name;
 	}
 	// It is an AI player. Get its type and resolve it to a pretty name
@@ -157,7 +163,26 @@ int32_t ClientParticipantList::participant_to_playerindex(int16_t participant) c
 //printf("bbb %i %i %i\n", participant, (*computerplayers_)[participant]->player_number(), pm->get_number_of_players());
 //assert((*computerplayers_)[participant]->player_number() <= pm->get_number_of_players());
 			return (*computerplayers_)[participant]->player_number();
-		} else if (game_ != nullptr) {
+		} else {
+			assert(settings_ != nullptr);
+			assert(participant >= 0);
+			assert(static_cast<size_t>(participant) < settings_->players.size());
+			for (size_t i = 0; i < settings_->players.size(); ++i) {
+				const PlayerSettings& player = settings_->players[i];
+				if (player.state != PlayerSettings::State::kComputer) {
+					// Ignore open, shared or human player slots
+					continue;
+				}
+				// Found a non-empty player slot
+				if (participant == 0) {
+					return i + 1;
+				}
+				--participant;
+				assert(participant >= 0);
+			}
+		}
+
+		/* else if (game_ != nullptr) {
 			const Widelands::PlayersManager *pm = game_->player_manager();
 			for (int32_t i = 0; i < kMaxPlayers; ++i) {
 				const Widelands::Player* p = pm->get_player(i + 1);
@@ -172,12 +197,12 @@ int32_t ClientParticipantList::participant_to_playerindex(int16_t participant) c
 				--participant;
 				assert(participant >= 0);
 			}
-		}
+		}*/
 		NEVER_HERE();
 	} else {
 		// No useful result possible for observers or semi-connected users
-
 		assert(participant_to_user(participant).position <= UserSettings::highest_playernum());
+
 //printf("aaa %i %i %i\n", participant, settings_->users[participant].position, pm->get_number_of_players());
 // Useless, vector has always max size: assert(settings_->users[participant].position <= pm->get_number_of_players());
 		// .position is the index within settings_->players and also

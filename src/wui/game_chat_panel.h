@@ -67,6 +67,7 @@ private:
 	void set_recipient();
 	void prepare_recipients();
 	bool select_recipient();
+	void update_has_team();
 
 	ChatProvider& chat_;
 	UI::MultilineTextarea chatbox;
@@ -74,6 +75,7 @@ private:
 	size_t chat_message_counter;
 	FxId chat_sound;
 	UI::Dropdown<std::string> recipient_dropdown_;
+	bool has_team_;
 	std::unique_ptr<Notifications::Subscriber<ChatMessage>> chat_message_subscriber_;
 	boost::signals2::connection update_signal_connection;
 };

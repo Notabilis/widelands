@@ -61,7 +61,8 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 			_("Recipient"),
 			UI::DropdownType::kPictorial,
 			UI::PanelStyle::kFsMenu,
-			UI::ButtonStyle::kFsMenuSecondary) {
+			UI::ButtonStyle::kFsMenuSecondary),
+		has_team_(false) {
 
 	editbox.ok.connect([this]() { key_enter(); });
 	editbox.cancel.connect([this]() { key_escape(); });
@@ -80,6 +81,7 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 		recipient_dropdown_.selected.connect([this]() { set_recipient(); });
 		// React to keypresses for autocompletition
 		editbox.changed.connect([this]() { key_changed(); });
+		update_has_team();
 		// Fill the dropdown menu with usernames
 		prepare_recipients();
 		// In the dropdown, select the entry that was used last time the menu was open
@@ -88,6 +90,7 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 		// Insert "@playername " into the edit field if the dropdown has a selection
 		set_recipient();
 		update_signal_connection = chat_.participants_->participants_updated.connect([this]() {
+				update_has_team();
 				// Create new contents for dropdown
 				prepare_recipients();
 				select_recipient();
@@ -149,14 +152,14 @@ void GameChatPanel::unfocus_edit() {
 
 void GameChatPanel::key_enter() {
 
-	// TODO: Remove this block
+	// TODO(Notabilis): Remove this block
 	if (chat_.participants_ != nullptr) {
 		int16_t n = chat_.participants_->get_participant_count();
 		printf("Player name: %s\n", chat_.participants_->get_local_playername().c_str());
 		printf("#participants: %i\n", n);
 		if (chat_.participants_->is_ingame()) {
 			printf("#\tName\t\tType\tPing\tStatus\tColor\tTeam\n");
-			for (auto i = 0; i < n; ++i) {
+			for (int16_t i = 0; i < n; ++i) {
 				if (chat_.participants_->get_participant_type(i)
 					== ParticipantList::ParticipantType::kObserver) {
 					// It is an observer, so there is not team, color or defeated-status
@@ -178,9 +181,12 @@ void GameChatPanel::key_enter() {
 				}
 			}
 		} else {
-			printf("#\tName\n");
-			for (auto i = 0; i < n; ++i) {
-				printf("%i.\t%s\n", i, chat_.participants_->get_participant_name(i).c_str());
+			printf("#\tName\tTeam\n");
+			for (int16_t i = 0; i < n; ++i) {
+				printf("%i.\t%s\t%i\n", i, chat_.participants_->get_participant_name(i).c_str(),
+						(chat_.participants_->get_participant_type(i)
+							== ParticipantList::ParticipantType::kObserver
+							? -1 : chat_.participants_->get_participant_team(i)));
 			}
 		}
 	}
@@ -325,11 +331,7 @@ printf("new_candidate=%s\n", candidate.c_str());
 		compare_names(name);
 	}
 	// Also offer to complete to "@team" but only when at the beginning of the input
-	// TODO(Notabilis): Only do this if the player is not alone in a team / in a team at all
-	if (namepart_pos == 1 && str[0] == '@') {
-		// There could be a problem if there really is a player called "team"...
-		// The messages would reacht the player and not the team in that case.
-		// Not quite sure how to fix this
+	if (has_team_ && namepart_pos == 1 && str[0] == '@') {
 		compare_names("team");
 	}
 
@@ -386,15 +388,16 @@ void GameChatPanel::prepare_recipients() {
 	// Select the "All" entry by default. Do *not* use the add() parameter for it since
 	// it calls the listener for selected()
 	recipient_dropdown_.select("");
-	// TODO(Notabilis): Hide the "team" entry if the player is alone in a team / in no team
-	recipient_dropdown_.add(_("Team"), "@team ",
-		g_gr->images().get("images/wui/buildings/menu_list_workers.png"));
+	if (has_team_) {
+		recipient_dropdown_.add(_("Team"), "@team ",
+			g_gr->images().get("images/wui/buildings/menu_list_workers.png"));
+	}
 
 	// Iterate over all human players (except ourselves) and add their names
 	const int16_t n_participants = chat_.participants_->get_participant_count();
 	const std::string& local_name = chat_.participants_->get_local_playername();
 
-	for (auto i = 0; i < n_participants; ++i) {
+	for (int16_t i = 0; i < n_participants; ++i) {
 		if (chat_.participants_->get_participant_type(i) == ParticipantList::ParticipantType::kAI) {
 			// Skip AIs
 			continue;
@@ -441,6 +444,63 @@ bool GameChatPanel::select_recipient() {
 		return false;
 	}
 	return true;
+}
+
+void GameChatPanel::update_has_team() {
+	// Figure out whether we have team members
+	int16_t index = 0;
+	const int16_t participant_count = chat_.participants_->get_participant_count();
+	if (participant_count <= 0) {
+		// We have just connected and don't know anything about the users yet
+		has_team_ = false;
+		return;
+	}
+	const std::string& local_name = chat_.participants_->get_local_playername();
+	assert(!local_name.empty());
+	// Find our player index
+	for (; index < participant_count; ++index) {
+		if (chat_.participants_->get_participant_name(index) == local_name) {
+			break;
+		}
+	}
+	assert(index < participant_count);
+	// Check whether we are a player or an observer
+	if (chat_.participants_->get_participant_type(index)
+			== ParticipantList::ParticipantType::kObserver) {
+		// We are an observer. Check if there are other observers
+		int16_t n_observers = 0;
+		for (int16_t i = 0; i < participant_count; ++i) {
+			if (chat_.participants_->get_participant_type(index)
+					== ParticipantList::ParticipantType::kObserver) {
+				++n_observers;
+			}
+		}
+		assert(n_observers > 0);
+		has_team_ = n_observers > 1;
+	} else {
+		// We are a player. Get our team
+		const Widelands::TeamNumber team = chat_.participants_->get_participant_team(index);
+		if (team == 0) {
+			// Team 0 is the "no team" entry
+			has_team_ = false;
+			return;
+		}
+		// Search for other players with the same team
+		int16_t n_teammembers = 0;
+		for (int16_t i = 0; i < participant_count; ++i) {
+			if (chat_.participants_->get_participant_type(i)
+					!= ParticipantList::ParticipantType::kPlayer) {
+				// Skip AIs. They won't answer anyway :(
+				// Also skip observers, they have no team
+				continue;
+			}
+			if (chat_.participants_->get_participant_team(i) == team) {
+				++n_teammembers;
+			}
+		}
+		assert(n_teammembers > 0);
+		has_team_ = n_teammembers > 1;
+	}
 }
 
 /**
