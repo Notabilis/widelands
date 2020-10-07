@@ -37,14 +37,15 @@ namespace Widelands {
 	class Player;
 }
 
-//#include "logic/widelands.h"
-
-/// Base class interface to provide access to the lists of participants to the UI.
-/// Is implemented by GameHost / GameClient to provide a clear interface.
-/// @note This is a list of participants, not of players. Defeated players and spectators are
-///       also handled by this, as well as AIs. The players are indirectly present since each
-///       player is always controlled by a human user or an AI.
-///       If a player slot is closed before starting the game, it will not show up here.
+/**
+ * Class interface to provide access to the lists of network game participants to the UI.
+ * @note This is a list of participants, not of players. Defeated players and spectators are
+ *       also handled by this, as well as AIs. The players are indirectly present since each
+ *      player is always controlled by a human user or an AI.
+ *       If a player slot is closed, it will not show up here.
+ * @note The \c participant indices used by this class are not compatible to other indices,
+ *       e.g., in GameSettings::players.
+ */
 class ParticipantList {
 
 public:
@@ -59,13 +60,21 @@ public:
 		kSpectator
 	};
 
-	// Note that game takes a reference to the pointer
+	/**
+	 * Constructor.
+	 * @param settings The settings of the current network game.
+	 *                 The game might be in the lobby or already started.
+	 * @param game A *reference* to a pointer to the game. This way the pointer might be \c nullptr
+	 *             when creating the class but will get the right value later on by itself.
+	 *             Also, the class can check for \c nullptr this way -> whether a game is running.
+	 * @param localplayername The name of the network player on this computer.
+	 */
 	ParticipantList(const GameSettings* settings, Widelands::Game*& game,
 					const std::string& localplayername);
 
 	// The methods do not return lists on purpose since the data isn't stored in
-	// lists within GameHost either. Creating lists here and keeping them updated
-	// is just asking for trouble
+	// lists within GameHost/GameClient either. Creating lists here and keeping
+	// them updated is just asking for trouble
 
 	/**
 	 * Returns the number of currently connected participants.
@@ -149,32 +158,39 @@ public:
 	 * Passed parameters are the participant number and the new RTT.
 	 */
 	boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
-/*};
 
-/// Implementation for use in GameHost and GameClient
-struct ClientParticipantList : public ParticipantList {
-
-	// Overrides from base class
-	int16_t get_participant_count() const override;
-	ParticipantType get_participant_type(int16_t participant) const override;
-	Widelands::TeamNumber get_participant_team(int16_t participant) const override;
-	const std::string& get_participant_name(int16_t participant) const override;
-	const std::string& get_local_playername() const override;
-	bool get_participant_defeated(int16_t participant) const override;
-	const RGBColor& get_participant_color(int16_t participant) const override;
-	bool is_ingame() const override;
-	uint8_t get_participant_ping(int16_t participant) const override;
-*/
 private:
 
-	// TODO(Notabilis): Document
+	/**
+	 * Fetches the UserSettings belonging to the given participant index.
+	 * The caller has to make sure that \c participant refers to a human user.
+	 * @param participant The index to fetch the data for.
+	 * @return The UserSettings entry for the given participant.
+	 */
 	const UserSettings& participant_to_user(int16_t participant) const;
+
+	/**
+	 * Gets the index within GameSettings::players that belongs to the given participant index.
+	 * \c participant might refer to a human or AI, but it must be a player and no spectator.
+	 * @param participant The index to fetch the data for.
+	 * @return The index within GameSettings::players for the given participant.
+	 */
 	int32_t participant_to_playerindex(int16_t participant) const;
+
+	/**
+	 * Fetches the Player belonging to the given participant index.
+	 * \c participant might refer to a human or AI, but it must be a player and no spectator.
+	 * @note This method must only be used while in a game.
+	 * @param participant The index to fetch the data for.
+	 * @return A pointer to the Player entry for the given participant.
+	 */
 	const Widelands::Player* participant_to_player(int16_t participant) const;
 
-	//GameClientImpl* d;
+	/// A reference to the settings of the current game (running or being prepared).
 	const GameSettings* settings_;
+	/// A reference to the pointer of a currently runnning game.
 	Widelands::Game*& game_;
+	/// A reference to the user name of the human on this computer.
 	const std::string& localplayername_;
 	/// The highest participant number that represents a human user.
 	/// Higher numbers represent AIs
@@ -185,7 +201,6 @@ private:
 	mutable int16_t participant_count_;
 #endif // NDEBUG
 };
-
 
 #endif // WL_NETWORK_PARTICIPANTLIST_H
 

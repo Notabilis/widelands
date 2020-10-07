@@ -64,7 +64,6 @@ struct ChatMessage {
 // Base classes must broadcast a ChatMessage as notification when a
 // new message is received.
 struct ChatProvider {
-	//ChatProvider(ParticipantList* participants) : participants_(participants) { }
 	virtual ~ChatProvider();
 
 	// Send the given chat message. The message may or may not
