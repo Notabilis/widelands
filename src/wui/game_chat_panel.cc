@@ -479,7 +479,7 @@ void GameChatPanel::update_has_team() {
 		// We are an observer. Check if there are other observers
 		int16_t n_observers = 0;
 		for (int16_t i = 0; i < participant_count; ++i) {
-			if (chat_.participants_->get_participant_type(index)
+			if (chat_.participants_->get_participant_type(i)
 					== ParticipantList::ParticipantType::kObserver) {
 				++n_observers;
 			}
