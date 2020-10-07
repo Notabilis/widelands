@@ -59,6 +59,10 @@ public:
 		kSpectator
 	};
 
+	// Note that game takes a reference to the pointer
+	ParticipantList(const GameSettings* settings, Widelands::Game*& game,
+					const std::string& localplayername);
+
 	// The methods do not return lists on purpose since the data isn't stored in
 	// lists within GameHost either. Creating lists here and keeping them updated
 	// is just asking for trouble
@@ -68,32 +72,30 @@ public:
 	 * Return value - 1 is the highest permitted participant number for the other methods.
 	 * @return The number of connected participants.
 	 */
-	virtual int16_t get_participant_count() const = 0;
+	int16_t get_participant_count() const;
 
 	/**
 	 * Returns the type of participant.
-	 * @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant get data about.
 	 * @return The type of participant.
 	 */
-	virtual ParticipantType get_participant_type(int16_t participant) const = 0;
+	ParticipantType get_participant_type(int16_t participant) const;
 
 	/**
 	 * Returns the team of the participant when the participant is a player.
 	 * A value of \c 0 indicates that the participant has no team.
 	 * For spectators, the result is undefined.
-	 //* @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant to get data about.
 	 * @return The team of player used by the participant.
 	 */
-	virtual Widelands::TeamNumber get_participant_team(int16_t participant) const = 0;
+	Widelands::TeamNumber get_participant_team(int16_t participant) const;
 
 	/**
 	 * Returns the name of the local player.
 	 * I.e., the player on the current computer.
 	 * @return The player name.
 	 */
-	virtual const std::string& get_local_playername() const = 0;
+	const std::string& get_local_playername() const;
 
 	/**
 	 * Returns the name of the participant.
@@ -103,31 +105,30 @@ public:
 	 * @param participant The number of the participant get data about.
 	 * @return The name of the participant.
 	 */
-	virtual const std::string& get_participant_name(int16_t participant) const = 0;
+	const std::string& get_participant_name(int16_t participant) const;
 
 	/**
 	 * Returns whether the player used by the participant is defeated or still playing.
 	 * For spectators, the result is undefined.
-	 * @warning Result is undefined when not ingame.
+	 * @warning Must only be called when ingame.
 	 * @param participant The number of the participant get data about.
 	 * @return Whether the participant has been defeated.
 	 */
-	virtual bool get_participant_defeated(int16_t participant) const = 0;
+	bool get_participant_defeated(int16_t participant) const;
 
 	/**
 	 * Returns the color of the player used by the participant.
 	 * For spectators, the result is undefined.
-	 * @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant get data about.
 	 * @return The playercolor.
 	 */
-	virtual const RGBColor& get_participant_color(int16_t participant) const = 0;
+	const RGBColor& get_participant_color(int16_t participant) const;
 
 	/**
 	 * Returns whether a game is currently running.
 	 * @return Whether a game is running.
 	 */
-	virtual bool is_ingame() const = 0;
+	bool is_ingame() const;
 
 	/**
 	 * Returns the ping time of the participant.
@@ -135,12 +136,11 @@ public:
 	 * relay.
 	 * For AI participant the result is undefined.
 	 * In network games that don't use the network relay the result is undefined.
-	 * @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant get data about.
 	 * @return The RTT in milliseconds for this participant up to 255ms.
 	 */
 	// TODO(Notabilis): Add support for LAN games
-	virtual uint8_t get_participant_ping(int16_t participant) const = 0;
+	uint8_t get_participant_ping(int16_t participant) const;
 
 	/// Called when the data was updated and should be re-fetched and redrawn
 	boost::signals2::signal<void()> participants_updated;
@@ -149,13 +149,10 @@ public:
 	 * Passed parameters are the participant number and the new RTT.
 	 */
 	boost::signals2::signal<void(int16_t, uint8_t)> participant_updated_rtt;
-};
+/*};
 
 /// Implementation for use in GameHost and GameClient
 struct ClientParticipantList : public ParticipantList {
-	// Note that game takes a reference to the pointer
-	ClientParticipantList(const GameSettings* settings, Widelands::Game*& game,
-				const std::vector<ComputerPlayer*>* computerplayers, const std::string& localplayername);
 
 	// Overrides from base class
 	int16_t get_participant_count() const override;
@@ -167,7 +164,7 @@ struct ClientParticipantList : public ParticipantList {
 	const RGBColor& get_participant_color(int16_t participant) const override;
 	bool is_ingame() const override;
 	uint8_t get_participant_ping(int16_t participant) const override;
-
+*/
 private:
 
 	// TODO(Notabilis): Document
@@ -178,7 +175,6 @@ private:
 	//GameClientImpl* d;
 	const GameSettings* settings_;
 	Widelands::Game*& game_;
-	const std::vector<ComputerPlayer*>* computerplayers_;
 	const std::string& localplayername_;
 	/// The highest participant number that represents a human user.
 	/// Higher numbers represent AIs

@@ -559,7 +559,7 @@ GameHost::GameHost(const std::string& playername, bool internet)
 	d->settings.users.push_back(hostuser);
 	file_.reset(nullptr);  //  Initialize as 0 pointer - unfortunately needed in struct.
 
-	d->set_participant_list(new ClientParticipantList(&(d->settings), d->game, &(d->computerplayers), d->localplayername));
+	d->set_participant_list(new ParticipantList(&(d->settings), d->game, d->localplayername));
 }
 
 GameHost::~GameHost() {

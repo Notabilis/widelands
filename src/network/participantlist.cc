@@ -6,13 +6,12 @@
 #include "logic/playersmanager.h"
 #include "logic/player.h"
 
-ClientParticipantList::ClientParticipantList(const GameSettings* settings, Widelands::Game*& game,
-		const std::vector<ComputerPlayer*>* computerplayers, const std::string& localplayername)
-			: settings_(settings), game_(game), computerplayers_(computerplayers),
-				localplayername_(localplayername), human_user_count_(0) {
+ParticipantList::ParticipantList(const GameSettings* settings, Widelands::Game*& game,
+									const std::string& localplayername)
+			: settings_(settings), game_(game), localplayername_(localplayername),
+				human_user_count_(0) {
 	assert(settings_ != nullptr);
 	// game_ might still be a nullpointer around here
-	// computerplayers_ is okay to be nullptr
 	// The pointer referenced by game_ might be undefined here
 #ifndef NDEBUG
 	participant_count_ = 0;
@@ -28,7 +27,7 @@ ClientParticipantList::ClientParticipantList(const GameSettings* settings, Widel
    - Add support for the ping signal
  */
 
-int16_t ClientParticipantList::get_participant_count() const {
+int16_t ParticipantList::get_participant_count() const {
 	// Number of connected humans
 	// settings_->users might contain disconnected humans, filter them out
 	human_user_count_ = 0;
@@ -57,7 +56,7 @@ printf("users = %lu, active users = %i, AIs = %i\n", settings_->users.size(), hu
 	return human_user_count_ + n_ais;
 }
 
-ParticipantList::ParticipantType ClientParticipantList::get_participant_type(int16_t participant) const {
+ParticipantList::ParticipantType ParticipantList::get_participant_type(int16_t participant) const {
 	assert(participant < participant_count_);
 	if (participant >= human_user_count_) {
 		return ParticipantList::ParticipantType::kAI;
@@ -68,7 +67,7 @@ ParticipantList::ParticipantType ClientParticipantList::get_participant_type(int
 	return ParticipantList::ParticipantType::kPlayer;
 }
 
-Widelands::TeamNumber ClientParticipantList::get_participant_team(int16_t participant) const {
+Widelands::TeamNumber ParticipantList::get_participant_team(int16_t participant) const {
 	const size_t index = participant_to_playerindex(participant);
 	assert(index <= settings_->players.size());
 	const Widelands::TeamNumber team = settings_->players[index - 1].team;
@@ -80,7 +79,7 @@ assert(team == participant_to_player(participant)->team_number());
 	return team;
 }
 
-const std::string& ClientParticipantList::get_participant_name(int16_t participant) const {
+const std::string& ParticipantList::get_participant_name(int16_t participant) const {
 	if (participant < human_user_count_) {
 		// We can't use the Player entry for normal users since it isn't the selected user name
 		// but instead a combined name of all the users for this player
@@ -98,22 +97,22 @@ assert(p->get_ai() == ps.ai);
 return ComputerPlayer::get_implementation(ps.ai)->descname ;
 }
 
-const std::string& ClientParticipantList::get_local_playername() const {
+const std::string& ParticipantList::get_local_playername() const {
 	return localplayername_;
 }
 
-bool ClientParticipantList::get_participant_defeated(int16_t participant) const {
+bool ParticipantList::get_participant_defeated(int16_t participant) const {
 	assert(is_ingame());
 	return participant_to_player(participant)->is_defeated();
 }
 
-const RGBColor& ClientParticipantList::get_participant_color(int16_t participant) const {
+const RGBColor& ParticipantList::get_participant_color(int16_t participant) const {
 	assert(get_participant_type(participant) != ParticipantList::ParticipantType::kSpectator);
 	// Partially copied code from Player class, but this way also works in lobby
 	return kPlayerColors[participant_to_playerindex(participant) - 1];
 }
 
-bool ClientParticipantList::is_ingame() const {
+bool ParticipantList::is_ingame() const {
 	return (game_ != nullptr);
 }
 
@@ -127,14 +126,14 @@ bool ClientParticipantList::is_ingame() const {
  * @return The RTT in milliseconds for this participant up to 255ms.
  */
 // TODO(Notabilis): Add support for LAN games
-uint8_t ClientParticipantList::get_participant_ping(int16_t participant) const {
+uint8_t ParticipantList::get_participant_ping(int16_t participant) const {
 	//assert(is_ingame());
 	assert(participant < participant_count_);
 	// TODO(Notabilis): Implement this function ... and all the Ping-stuff that belongs to it
 	return 0;
 }
 
-const UserSettings& ClientParticipantList::participant_to_user(int16_t participant) const {
+const UserSettings& ParticipantList::participant_to_user(int16_t participant) const {
 	assert(participant < human_user_count_);
 	assert(participant < static_cast<int16_t>(settings_->users.size()));
 	for (const UserSettings& u : settings_->users) {
@@ -149,7 +148,7 @@ const UserSettings& ClientParticipantList::participant_to_user(int16_t participa
 	NEVER_HERE();
 }
 
-int32_t ClientParticipantList::participant_to_playerindex(int16_t participant) const {
+int32_t ParticipantList::participant_to_playerindex(int16_t participant) const {
 	if (participant >= human_user_count_) {
 		// AI
 		participant -= human_user_count_;
@@ -190,7 +189,7 @@ int32_t ClientParticipantList::participant_to_playerindex(int16_t participant) c
 	}
 }
 
-const Widelands::Player* ClientParticipantList::participant_to_player(int16_t participant) const {
+const Widelands::Player* ParticipantList::participant_to_player(int16_t participant) const {
 	assert(participant < participant_count_);
 	assert(game_ != nullptr);
 	const Widelands::PlayersManager *pm = game_->player_manager();

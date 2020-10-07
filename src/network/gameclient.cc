@@ -239,7 +239,7 @@ GameClient::GameClient(const std::pair<NetAddress, NetAddress>& host,
 	// Get the default win condition script
 	d->settings.win_condition_script = d->settings.win_condition_scripts.front();
 
-	d->participants.reset(new ClientParticipantList(&(d->settings), d->game, nullptr, d->localplayername));
+	d->participants.reset(new ParticipantList(&(d->settings), d->game, d->localplayername));
 	participants_ = d->participants.get();
 }
 
