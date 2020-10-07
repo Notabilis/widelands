@@ -451,8 +451,10 @@ void GameChatPanel::update_has_team() {
 	// Figure out whether we have team members
 	int16_t index = 0;
 	const int16_t participant_count = chat_.participants_->get_participant_count();
-	if (participant_count <= 0) {
-		// We have just connected and don't know anything about the users yet
+	assert(participant_count >= 0);
+	if (participant_count <= 1) {
+		// If 0: We have just connected and don't know anything about the users yet
+		// If 1: We are the only participant, so there can't be any teams
 		has_team_ = false;
 		return;
 	}
@@ -463,6 +465,12 @@ void GameChatPanel::update_has_team() {
 		if (chat_.participants_->get_participant_name(index) == local_name) {
 			break;
 		}
+	}
+	if (index >= participant_count) {
+		// Shouldn't happen normally. Most likely we just connected as a client
+		// and don't know about the users (including ourselves) yet
+		has_team_ = false;
+		return;
 	}
 	assert(index < participant_count);
 	// Check whether we are a player or an observer
