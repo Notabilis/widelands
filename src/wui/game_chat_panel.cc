@@ -157,7 +157,7 @@ void GameChatPanel::key_enter() {
 		int16_t n = chat_.participants_->get_participant_count();
 		printf("Player name: %s\n", chat_.participants_->get_local_playername().c_str());
 		printf("#participants: %i\n", n);
-		if (chat_.participants_->is_ingame()) {
+		//if (chat_.participants_->is_ingame()) {
 			printf("#\tName\t\tType\tPing\tStatus\tColor\tTeam\n");
 			for (int16_t i = 0; i < n; ++i) {
 				if (chat_.participants_->get_participant_type(i)
@@ -174,13 +174,14 @@ void GameChatPanel::key_enter() {
 						(chat_.participants_->get_participant_type(i)
 							== ParticipantList::ParticipantType::kPlayer ? "Player" : "AI"),
 						chat_.participants_->get_participant_ping(i),
-						(chat_.participants_->get_participant_defeated(i) ? "Defeated" : "Playing"),
+						(chat_.participants_->is_ingame() ?
+						(chat_.participants_->get_participant_defeated(i) ? "Defeated" : "Playing") : "NA"),
 						chat_.participants_->get_participant_color(i).hex_value().c_str(),
 						chat_.participants_->get_participant_team(i)
 						);
 				}
 			}
-		} else {
+		/*} else {
 			printf("#\tName\tTeam\n");
 			for (int16_t i = 0; i < n; ++i) {
 				printf("%i.\t%s\t%i\n", i, chat_.participants_->get_participant_name(i).c_str(),
@@ -188,7 +189,7 @@ void GameChatPanel::key_enter() {
 							== ParticipantList::ParticipantType::kObserver
 							? -1 : chat_.participants_->get_participant_team(i)));
 			}
-		}
+		}*/
 	}
 
 	const std::string& str = editbox.text();

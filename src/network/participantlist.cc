@@ -41,27 +41,13 @@ printf("get_count() using\n");
 else printf("get_count() not using\n");
 	}
 	int16_t n_ais = 0;
-	if (computerplayers_ != nullptr) {
-		// The list of computerplayers is only available on the GameHost, so we might not always
-		// have access to it. If we don't have it, we have to search the player list for AIs.
-		// Works as well, but is less efficient
-		n_ais = computerplayers_->size();
-	} else if (game_) {
-		const Widelands::PlayersManager *pm = game_->player_manager();
-		assert(pm);
-		const uint8_t n_players = pm->get_number_of_players();
-		for (int32_t i = 0; i < kMaxPlayers; ++i) {
-			if (n_ais >= n_players) {
-				break;
-			}
-			const Widelands::Player* p = pm->get_player(i + 1);
-			if (p == nullptr) {
-				continue;
-			}
-			if (!p->get_ai().empty()) {
-				++n_ais;
-			}
+	for (size_t i = 0; i < settings_->players.size(); ++i) {
+		const PlayerSettings& player = settings_->players[i];
+		if (player.state != PlayerSettings::State::kComputer) {
+			// Ignore open, shared or human player slots
+			continue;
 		}
+		++n_ais;
 	}
 printf("users = %lu, active users = %i, AIs = %i\n", settings_->users.size(), human_user_count_, n_ais);
 	assert(human_user_count_ <= static_cast<int16_t>(settings_->users.size()));
@@ -86,10 +72,11 @@ Widelands::TeamNumber ClientParticipantList::get_participant_team(int16_t partic
 	const size_t index = participant_to_playerindex(participant);
 	assert(index <= settings_->players.size());
 	const Widelands::TeamNumber team = settings_->players[index - 1].team;
-	//assert(is_ingame());
-	if (is_ingame()) {
-		assert(team == participant_to_player(participant)->team_number());
-	}
+//assert(is_ingame());
+if (is_ingame()) {
+/// NOCOM: Remove
+assert(team == participant_to_player(participant)->team_number());
+}
 	return team;
 }
 
@@ -100,8 +87,15 @@ const std::string& ClientParticipantList::get_participant_name(int16_t participa
 		return participant_to_user(participant).name;
 	}
 	// It is an AI player. Get its type and resolve it to a pretty name
-	const Widelands::Player* p = participant_to_player(participant);
-	return ComputerPlayer::get_implementation(p->get_ai())->descname;
+	const PlayerSettings& ps = settings_->players[participant_to_playerindex(participant) - 1];
+	assert(ps.state == PlayerSettings::State::kComputer);
+if (is_ingame()) {
+// Old way
+/// NOCOM: Remove
+const Widelands::Player* p = participant_to_player(participant);
+assert(p->get_ai() == ps.ai);
+}
+return ComputerPlayer::get_implementation(ps.ai)->descname ;
 }
 
 const std::string& ClientParticipantList::get_local_playername() const {
@@ -134,7 +128,7 @@ bool ClientParticipantList::is_ingame() const {
  */
 // TODO(Notabilis): Add support for LAN games
 uint8_t ClientParticipantList::get_participant_ping(int16_t participant) const {
-	assert(is_ingame());
+	//assert(is_ingame());
 	assert(participant < participant_count_);
 	// TODO(Notabilis): Implement this function ... and all the Ping-stuff that belongs to it
 	return 0;
@@ -159,11 +153,13 @@ int32_t ClientParticipantList::participant_to_playerindex(int16_t participant) c
 	if (participant >= human_user_count_) {
 		// AI
 		participant -= human_user_count_;
-		if (computerplayers_ != nullptr) {
+		// TODO(Notabilis): Can I remove computerplayers_ and use the entry in settings_ ?
+		// Yes, I can. Its only an optimization. Remove it?
+		/*if (computerplayers_ != nullptr) {
 //printf("bbb %i %i %i\n", participant, (*computerplayers_)[participant]->player_number(), pm->get_number_of_players());
 //assert((*computerplayers_)[participant]->player_number() <= pm->get_number_of_players());
 			return (*computerplayers_)[participant]->player_number();
-		} else {
+		} else {*/
 			assert(settings_ != nullptr);
 			assert(participant >= 0);
 			assert(static_cast<size_t>(participant) < settings_->players.size());
@@ -180,24 +176,7 @@ int32_t ClientParticipantList::participant_to_playerindex(int16_t participant) c
 				--participant;
 				assert(participant >= 0);
 			}
-		}
-
-		/* else if (game_ != nullptr) {
-			const Widelands::PlayersManager *pm = game_->player_manager();
-			for (int32_t i = 0; i < kMaxPlayers; ++i) {
-				const Widelands::Player* p = pm->get_player(i + 1);
-				if (p == nullptr) {
-					continue;
-				}
-				// Found a non-empty player slot
-				if (participant == 0) {
-					assert(i + 1 == p->player_number());
-					return i + 1;
-				}
-				--participant;
-				assert(participant >= 0);
-			}
-		}*/
+		//}
 		NEVER_HERE();
 	} else {
 		// No useful result possible for observers or semi-connected users
