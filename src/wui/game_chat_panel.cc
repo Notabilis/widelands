@@ -161,9 +161,9 @@ void GameChatPanel::key_enter() {
 			printf("#\tName\t\tType\tPing\tStatus\tColor\tTeam\n");
 			for (int16_t i = 0; i < n; ++i) {
 				if (chat_.participants_->get_participant_type(i)
-					== ParticipantList::ParticipantType::kObserver) {
-					// It is an observer, so there is not team, color or defeated-status
-					printf("%i.\t%s\t\tObserver\t%u\n", i,
+					== ParticipantList::ParticipantType::kSpectator) {
+					// It is a spectator, so there is not team, color or defeated-status
+					printf("%i.\t%s\t\tSpectator\t%u\n", i,
 						chat_.participants_->get_participant_name(i).c_str(),
 						chat_.participants_->get_participant_ping(i)
 						);
@@ -186,7 +186,7 @@ void GameChatPanel::key_enter() {
 			for (int16_t i = 0; i < n; ++i) {
 				printf("%i.\t%s\t%i\n", i, chat_.participants_->get_participant_name(i).c_str(),
 						(chat_.participants_->get_participant_type(i)
-							== ParticipantList::ParticipantType::kObserver
+							== ParticipantList::ParticipantType::kSpectator
 							? -1 : chat_.participants_->get_participant_team(i)));
 			}
 		}*/
@@ -409,7 +409,7 @@ void GameChatPanel::prepare_recipients() {
 		}
 
 		if (chat_.participants_->get_participant_type(i)
-			== ParticipantList::ParticipantType::kObserver) {
+			== ParticipantList::ParticipantType::kSpectator) {
 			recipient_dropdown_.add(name, "@" + name + " ",
 				g_gr->images().get("images/wui/fieldaction/menu_tab_watch.png"));
 		} else {
@@ -473,19 +473,19 @@ void GameChatPanel::update_has_team() {
 		return;
 	}
 	assert(index < participant_count);
-	// Check whether we are a player or an observer
+	// Check whether we are a player or a spectator
 	if (chat_.participants_->get_participant_type(index)
-			== ParticipantList::ParticipantType::kObserver) {
-		// We are an observer. Check if there are other observers
-		int16_t n_observers = 0;
+			== ParticipantList::ParticipantType::kSpectator) {
+		// We are a spectator. Check if there are other spectators
+		int16_t n_spectators = 0;
 		for (int16_t i = 0; i < participant_count; ++i) {
 			if (chat_.participants_->get_participant_type(i)
-					== ParticipantList::ParticipantType::kObserver) {
-				++n_observers;
+					== ParticipantList::ParticipantType::kSpectator) {
+				++n_spectators;
 			}
 		}
-		assert(n_observers > 0);
-		has_team_ = n_observers > 1;
+		assert(n_spectators > 0);
+		has_team_ = n_spectators > 1;
 	} else {
 		// We are a player. Get our team
 		const Widelands::TeamNumber team = chat_.participants_->get_participant_team(index);
@@ -500,7 +500,7 @@ void GameChatPanel::update_has_team() {
 			if (chat_.participants_->get_participant_type(i)
 					!= ParticipantList::ParticipantType::kPlayer) {
 				// Skip AIs. They won't answer anyway :(
-				// Also skip observers, they have no team
+				// Also skip spectators, they have no team
 				continue;
 			}
 			if (chat_.participants_->get_participant_team(i) == team) {

@@ -865,10 +865,10 @@ void GameHost::send(ChatMessage msg) {
 printf("Its for the team!\n");
 			// Figure out the team of the sender
 			if (msg.playern == UserSettings::none()) {
-printf("its from an observer\n");
-				// The message is from an observer. Find all other observers and send it to them
+printf("its from a spectator\n");
+				// The message is from a spectator. Find all other spectators and send it to them
 				if (d->settings.playernum == UserSettings::none()) {
-					// The host is (one of the) observers
+					// The host is (one of the) spectators
 					recipients.insert(-2);
 				}
 				for (uint16_t i = 0; i < d->settings.users.size(); ++i) {
@@ -876,7 +876,7 @@ printf("its from an observer\n");
 					if (user.position != UserSettings::none()) {
 						continue;
 					}
-printf("found observer _%s_\n", user.name.c_str());
+printf("found spectator _%s_\n", user.name.c_str());
 					// Search for the matching network connection
 					for (uint32_t client = 0; client < d->clients.size(); ++client) {
 						if (d->clients.at(client).usernum == static_cast<int16_t>(i)) {
@@ -949,7 +949,7 @@ printf("is in team %u\n", team_sender);
 						}
 					}
 				} // end team is not "no team"
-			} // end team is not observer
+			} // end team is not spectator
 /// TODO(Notabilis): Disallow the playername "team"
 		} // end team message
 	} // end directed message

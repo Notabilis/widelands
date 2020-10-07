@@ -57,7 +57,7 @@ struct PlayerSettings {
 };
 
 struct UserSettings {
-	// Seems to be used if a user is an observer but not a player
+	// Seems to be used if a user is a spectator but not a player
 	constexpr static uint8_t none() {
 		return std::numeric_limits<uint8_t>::max();
 	}
@@ -90,7 +90,7 @@ struct NoteGameSettings {
 	CAN_BE_SENT_AS_NOTE(NoteId::GameSettings)
 
 	enum class Action {
-		kUser,    // A client has picked a different player slot / become an observer
+		kUser,    // A client has picked a different player slot / become a spectator
 		kPlayer,  // A player slot has changed its status (type, tribe etc.)
 		kMap      // A new map/savegame was selected
 	};

@@ -63,7 +63,7 @@ ParticipantList::ParticipantType ClientParticipantList::get_participant_type(int
 		return ParticipantList::ParticipantType::kAI;
 	}
 	if (participant_to_user(participant).position == UserSettings::none()) {
-		return ParticipantList::ParticipantType::kObserver;
+		return ParticipantList::ParticipantType::kSpectator;
 	}
 	return ParticipantList::ParticipantType::kPlayer;
 }
@@ -108,7 +108,7 @@ bool ClientParticipantList::get_participant_defeated(int16_t participant) const 
 }
 
 const RGBColor& ClientParticipantList::get_participant_color(int16_t participant) const {
-	assert(get_participant_type(participant) != ParticipantList::ParticipantType::kObserver);
+	assert(get_participant_type(participant) != ParticipantList::ParticipantType::kSpectator);
 	// Partially copied code from Player class, but this way also works in lobby
 	return kPlayerColors[participant_to_playerindex(participant) - 1];
 }
@@ -179,7 +179,7 @@ int32_t ClientParticipantList::participant_to_playerindex(int16_t participant) c
 		//}
 		NEVER_HERE();
 	} else {
-		// No useful result possible for observers or semi-connected users
+		// No useful result possible for spectators or semi-connected users
 		assert(participant_to_user(participant).position <= UserSettings::highest_playernum());
 
 //printf("aaa %i %i %i\n", participant, settings_->users[participant].position, pm->get_number_of_players());

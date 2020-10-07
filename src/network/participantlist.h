@@ -41,7 +41,7 @@ namespace Widelands {
 
 /// Base class interface to provide access to the lists of participants to the UI.
 /// Is implemented by GameHost / GameClient to provide a clear interface.
-/// @note This is a list of participants, not of players. Defeated players and observers are
+/// @note This is a list of participants, not of players. Defeated players and spectators are
 ///       also handled by this, as well as AIs. The players are indirectly present since each
 ///       player is always controlled by a human user or an AI.
 ///       If a player slot is closed before starting the game, it will not show up here.
@@ -55,8 +55,8 @@ public:
 		kPlayer,
 		/// An AI controlling a tribe
 		kAI,
-		/// A human observer of the game
-		kObserver
+		/// A human spectator of the game
+		kSpectator
 	};
 
 	// The methods do not return lists on purpose since the data isn't stored in
@@ -81,7 +81,7 @@ public:
 	/**
 	 * Returns the team of the participant when the participant is a player.
 	 * A value of \c 0 indicates that the participant has no team.
-	 * For observers, the result is undefined.
+	 * For spectators, the result is undefined.
 	 //* @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant to get data about.
 	 * @return The team of player used by the participant.
@@ -107,7 +107,7 @@ public:
 
 	/**
 	 * Returns whether the player used by the participant is defeated or still playing.
-	 * For observers, the result is undefined.
+	 * For spectators, the result is undefined.
 	 * @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant get data about.
 	 * @return Whether the participant has been defeated.
@@ -116,7 +116,7 @@ public:
 
 	/**
 	 * Returns the color of the player used by the participant.
-	 * For observers, the result is undefined.
+	 * For spectators, the result is undefined.
 	 * @warning Result is undefined when not ingame.
 	 * @param participant The number of the participant get data about.
 	 * @return The playercolor.
