@@ -289,8 +289,8 @@ printf("namepart=%s\n", namepart.c_str());
 
 	// Helper function: Compare the given names and extract a common prefix (if existing)
 	static const auto compare_names = [&namepart, &candidate] (const std::string& name) {
-printf("name=%s count=%lu\n", namepart.c_str(), equal_chars);
 		size_t n_equal_chars = count_equal_chars(namepart, name);
+printf("name=%s count=%lu\n", namepart.c_str(), n_equal_chars);
 		if (n_equal_chars == namepart.size()) {
 			// We have a candidate!
 printf("MAtch!\n");

@@ -917,11 +917,13 @@ printf("is in team %u\n", team_sender);
 					// Search for network clients that are using the player slot
 					for (uint32_t client = 0; client < d->clients.size(); ++client) {
 						if (d->clients.at(client).playernum == msg.playern) {
+printf("found #client = %i that is using the same player slot\n", client);
 							recipients.insert(client);
 						}
 					}
 					// Check if the host is using the same player slot
 					if (d->settings.playernum == msg.playern) {
+printf("found host is using the same player slot\n");
 						recipients.insert(-2);
 					}
 				} else {

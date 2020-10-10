@@ -64,6 +64,7 @@ const std::string& ParticipantList::get_participant_name(int16_t participant) co
 	if (is_ingame()) {
 		/// NOCOM: Remove
 		const Widelands::Player* p = participant_to_player(participant);
+printf("old=%s new=%s name=%s\n", p->get_ai().c_str(), ps.ai.c_str(), ps.name.c_str());
 		assert(p->get_ai() == ps.ai);
 	}
 #endif // NDEBUG
@@ -91,24 +92,31 @@ NEVER_HERE();
 		return false;
 	}
 
+printf("my_index=%i\n", my_index);
 	// Check whether we are a player or a spectator
 	bool found_someone = false;
 	if (get_participant_type(my_index) == ParticipantType::kSpectator) {
 		// We are a spectator. Check if there are other spectators
+printf("i am a spectator\n");
 		for (int16_t i = 0; i < participant_counts_[0]; ++i) {
+printf("checking participant %i\n", i);
 			if (get_participant_type(i) == ParticipantType::kSpectator) {
+printf("participant %i is matching\n", i);
 				if (found_someone) {
 					// The first one we find might be we. If we find a second one,
 					// we know that there is a teammate
+printf("found spectator teammate\n");
 					return true;
 				}
 				found_someone = true;
 			}
 		}
 	} else {
+printf("i am a player\n");
 		// We are a player. Get our team
 		const Widelands::TeamNumber my_team = get_participant_team(my_index);
 		if (my_team == 0) {
+printf("i am a player without a team\n");
 			// Team 0 is the "no team" entry
 			// TODO(Notabilis): Check whether we are a shared player
 			// Special case: There might be one or multiple humans using the same player slot,
@@ -136,21 +144,27 @@ NEVER_HERE();
 					continue;
 				}
 				if (found_someone) {
+printf("found same player teammate\n");
 					return true;
 				}
 				found_someone = true;
 			}
+printf("i am all alone\n");
 			// We are all alone (in this game)
 			return false;
 		}
 		// Search for other players with the same team
 		for (int16_t i = 0; i < participant_counts_[0]; ++i) {
+printf("checking participant %i\n", i);
 			if (get_participant_type(i) != ParticipantType::kPlayer) {
 				// Skip spectators, they are no team players
+printf("skipping since no player\n");
 				continue;
 			}
 			if (get_participant_team(i) == my_team) {
+printf("participant %i is matching\n", i);
 				if (found_someone) {
+printf("found player teammate\n");
 					return true;
 				}
 				found_someone = true;
@@ -166,8 +180,10 @@ const std::string& ParticipantList::get_local_playername() const {
 
 int16_t ParticipantList::get_local_playerindex() const {
 	assert(!localplayername_.empty());
+printf("my name=%s  count=%i\n", localplayername_.c_str(), participant_counts_[0]);
 	// Find our player index
 	for (int16_t my_index = 0; my_index < participant_counts_[0]; ++my_index) {
+printf("my name=%s  other name=%s  my_index=%i\n", localplayername_.c_str(), get_participant_name(my_index).c_str(), my_index);
 		if (get_participant_name(my_index) == localplayername_) {
 			return my_index;
 		}
@@ -264,14 +280,19 @@ const Widelands::Player* ParticipantList::participant_to_player(int16_t particip
 
 void ParticipantList::update_participant_counts() {
 
+printf("update_participant_counts()\n");
 	// Number of connected humans
 	participant_counts_[0] = 0;
 	for (const UserSettings& u : settings_->users) {
+printf("get_count() name=%s\n", u.name.c_str());
 		// settings_->users might contain disconnected humans, filter them out
 		if (u.position != UserSettings::not_connected()) {
+printf("get_count() using\n");
 			++participant_counts_[0];
 		}
+else printf("get_count() not using\n");
 	}
+printf("get_count() is at %i human users\n", participant_counts_[0]);
 	participant_counts_[1] = 0;
 	for (size_t i = 0; i < settings_->players.size(); ++i) {
 		const PlayerSettings& player = settings_->players[i];
@@ -282,6 +303,8 @@ void ParticipantList::update_participant_counts() {
 		++participant_counts_[1];
 	}
 
+printf("get_count() without game: %i ais\n", participant_counts_[1]);
+printf("users = %lu, active users = %i, AIs = %i\n", settings_->users.size(), participant_counts_[0], participant_counts_[1]);
 	assert(participant_counts_[0] <= static_cast<int16_t>(settings_->users.size()));
 	participant_counts_[2] = participant_counts_[0] + participant_counts_[1];
 }
