@@ -118,7 +118,6 @@ printf("i am a player\n");
 		if (my_team == 0) {
 printf("i am a player without a team\n");
 			// Team 0 is the "no team" entry
-			// TODO(Notabilis): Check whether we are a shared player
 			// Special case: There might be one or multiple humans using the same player slot,
 			// even when the player slot has no team.
 			// In that case, allow team messages to the other humans
@@ -215,6 +214,7 @@ uint8_t ParticipantList::get_participant_ping(int16_t participant) const {
 	// - Maybe show two RTTs per player: To the host and to the netrelay
 	// - Offer "autoUpdatePings(bool)" method to have the ping results be periodically refreshed
 	// - Add support for the ping signal
+	// TODO(Notabilis): Add support for LAN games
 	return 0;
 }
 

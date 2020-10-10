@@ -41,7 +41,7 @@
 /// that only one instance is running at time.
 InternetGaming::InternetGaming()
 	// TODO(Notabilis): Maybe add support for ParticipantList and set it in the ChatProvider
-	// Idea: Autocomplete the names of the users when in the internet lobby
+	//                  Idea: Autocomplete the names of the users when in the internet lobby
    : net(nullptr),
      state_(OFFLINE),
      reg_(false),
@@ -869,12 +869,11 @@ const std::vector<InternetClient>* InternetGaming::clients() {
 /// ChatProvider: sends a message via the metaserver.
 void InternetGaming::send(const std::string& msg) {
 	// TODO(Notabilis): Messages can get lost when we are temporarily disconnected from the
-	// metaserver,
-	// even when we reconnect again. "Answered" messages like IGPCMD_GAME_CONNECT are resent but chat
-	// messages are not. Resend them after some time when we did not receive the matching IGPCMD_CHAT
-	// command from the server? For global/public messages we could wait for the returned IGPCMD_CHAT
-	// from the metaserver, similar to other commands. What about private messages? Maybe modify the
-	// metaserver to send them back, too?
+	// metaserver, even when we reconnect again. "Answered" messages like IGPCMD_GAME_CONNECT
+	// are resent but chat messages are not. Resend them after some time when we did not receive
+	// the matching IGPCMD_CHAT command from the server? For global/public messages we could wait
+	// for the returned IGPCMD_CHAT from the metaserver, similar to other commands.
+	// What about private messages? Maybe modify the metaserver to send them back, too?
 	if (!logged_in()) {
 		format_and_add_chat(
 		   "", "", true, _("Message could not be sent: You are not connected to the metaserver!"));

@@ -176,7 +176,6 @@ public:
 	 * @param participant The number of the participant get data about.
 	 * @return The RTT in milliseconds for this participant up to 255ms.
 	 */
-	// TODO(Notabilis): Add support for LAN games
 	uint8_t get_participant_ping(int16_t participant) const;
 
 	/// Called when the data was updated and should be re-fetched and redrawn
