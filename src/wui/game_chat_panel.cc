@@ -84,7 +84,7 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 		// React to keypresses for autocompletition
 		editbox.changed.connect([this]() { key_changed(); });
 		// Figure out whether the local player has teammates
-		update_has_team();
+		has_team_ = chat_.participants_->needs_teamchat();
 		// Fill the dropdown menu with usernames
 		prepare_recipients();
 		// In the dropdown, select the entry that was used last time the menu was open
@@ -94,7 +94,7 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 		set_recipient();
 		update_signal_connection = chat_.participants_->participants_updated.connect([this]() {
 				// When the participants change, create new contents for dropdown
-				update_has_team();
+				has_team_ = chat_.participants_->needs_teamchat();
 				prepare_recipients();
 				select_recipient();
 			});
@@ -445,74 +445,6 @@ bool GameChatPanel::select_recipient() {
 		return false;
 	}
 	return true;
-}
-
-/**
- * Figure out whether the local player has team members
- */
-void GameChatPanel::update_has_team() {
-	int16_t my_index = 0;
-	const int16_t human_count = chat_.participants_->get_participant_counts()[0];
-	assert(human_count >= 0);
-	if (human_count <= 1) {
-		// If 0: We have just connected and don't know anything about the users yet
-		// If 1: We are the only participant, so there can't be any teams
-		has_team_ = false;
-		return;
-	}
-	const std::string& local_name = chat_.participants_->get_local_playername();
-	assert(!local_name.empty());
-	// Find our player index
-	for (; my_index < human_count; ++my_index) {
-		if (chat_.participants_->get_participant_name(my_index) == local_name) {
-			break;
-		}
-	}
-	assert(my_index < human_count);
-	if (my_index >= human_count) {
-		// Shouldn't happen normally. Most likely we just connected as a client
-		// and don't know about the users (including ourselves) yet.
-		// But we know about the AIs, so the previous check didn't triggered
-		has_team_ = false;
-		return;
-	}
-
-	// Check whether we are a player or a spectator
-	if (chat_.participants_->get_participant_type(my_index)
-			== ParticipantList::ParticipantType::kSpectator) {
-		// We are a spectator. Check if there are other spectators
-		int16_t n_spectators = 0;
-		for (int16_t i = 0; i < human_count; ++i) {
-			if (chat_.participants_->get_participant_type(i)
-					== ParticipantList::ParticipantType::kSpectator) {
-				++n_spectators;
-			}
-		}
-		assert(n_spectators > 0);
-		has_team_ = n_spectators > 1;
-	} else {
-		// We are a player. Get our team
-		const Widelands::TeamNumber my_team = chat_.participants_->get_participant_team(my_index);
-		if (my_team == 0) {
-			// Team 0 is the "no team" entry
-			has_team_ = false;
-			return;
-		}
-		// Search for other players with the same team
-		int16_t n_teammembers = 0;
-		for (int16_t i = 0; i < human_count; ++i) {
-			if (chat_.participants_->get_participant_type(i)
-					!= ParticipantList::ParticipantType::kPlayer) {
-				// Skip spectators, they are no player team
-				continue;
-			}
-			if (chat_.participants_->get_participant_team(i) == my_team) {
-				++n_teammembers;
-			}
-		}
-		assert(n_teammembers > 0);
-		has_team_ = n_teammembers > 1;
-	}
 }
 
 /**

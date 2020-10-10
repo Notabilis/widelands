@@ -67,7 +67,6 @@ private:
 	void set_recipient();
 	void prepare_recipients();
 	bool select_recipient();
-	void update_has_team();
 
 	ChatProvider& chat_;
 	UI::MultilineTextarea chatbox;

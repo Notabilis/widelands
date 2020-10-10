@@ -103,11 +103,31 @@ public:
 	Widelands::TeamNumber get_participant_team(int16_t participant) const;
 
 	/**
+	 * Returns whether the local player has someone to chat in its team.
+	 * For spectators this is true if there are other spectators.
+	 * For players this is true when there are teammembers that are no AI.
+	 * For player slots shared between multiple humans, this is always true.
+	 * @param participant The number of the participant to get data about.
+	 * @return Whether the participant has someone to chat in its team.
+	 */
+	bool needs_teamchat() const;
+
+	/**
 	 * Returns the name of the local player.
 	 * I.e., the player on the current computer.
+	 * @note This method is much more efficient than getting the name for the local playerindex.
 	 * @return The player name.
 	 */
 	const std::string& get_local_playername() const;
+
+	/**
+	 * Returns the participant index of the local player.
+	 * Might return -1 (invalid index) when the current state of the game settings is invalid.
+	 * This can happen for a moment after a client connected to a game.
+	 * @note This method is relatively expensive (looping through players).
+	 * @return The index of the local player or -1.
+	 */
+	int16_t get_local_playerindex() const;
 
 	/**
 	 * Returns the name of the participant.
@@ -156,6 +176,7 @@ public:
 
 	/// Called when the data was updated and should be re-fetched and redrawn
 	boost::signals2::signal<void()> participants_updated;
+
 	/**
 	 * Called when the RTT for a participant changed.
 	 * Passed parameters are the participant number and the new RTT.

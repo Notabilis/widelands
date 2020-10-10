@@ -84,8 +84,72 @@ const std::string& ParticipantList::get_participant_name(int16_t participant) co
 	return ComputerPlayer::get_implementation(ps.ai)->descname ;
 }
 
+
+bool ParticipantList::needs_teamchat() const {
+	if (participant_counts_[0] <= 1) {
+		// If <0: Not initialized yet
+		// If 0: We have just connected and don't know anything about the users yet
+		// If 1: We are the only participant, so there can't be any teams
+		return false;
+	}
+
+	const int16_t my_index = get_local_playerindex();
+	assert(my_index >= 0);
+	assert(my_index < participant_counts_[0]);
+
+	// Check whether we are a player or a spectator
+	bool found_someone = false;
+	if (get_participant_type(my_index) == ParticipantType::kSpectator) {
+		// We are a spectator. Check if there are other spectators
+		for (int16_t i = 0; i < participant_counts_[0]; ++i) {
+			if (get_participant_type(i) == ParticipantType::kSpectator) {
+				if (found_someone) {
+					// The first one we find might be we. If we find a second one,
+					// we know that there is a teammate
+					return true;
+				}
+				found_someone = true;
+			}
+		}
+	} else {
+		// We are a player. Get our team
+		const Widelands::TeamNumber my_team = get_participant_team(my_index);
+		if (my_team == 0) {
+			// Team 0 is the "no team" entry
+			// TODO(Notabilis): Check whether we are a shared player
+			return false;
+		}
+		// Search for other players with the same team
+		for (int16_t i = 0; i < participant_counts_[0]; ++i) {
+			if (get_participant_type(i) != ParticipantType::kPlayer) {
+				// Skip spectators, they are no team players
+				continue;
+			}
+			if (get_participant_team(i) == my_team) {
+				if (found_someone) {
+					return true;
+				}
+				found_someone = true;
+			}
+		}
+	}
+	return false;
+}
+
 const std::string& ParticipantList::get_local_playername() const {
 	return localplayername_;
+}
+
+int16_t ParticipantList::get_local_playerindex() const {
+	assert(!localplayername_.empty());
+	// Find our player index
+	for (int16_t my_index = 0; my_index < participant_counts_[0]; ++my_index) {
+		if (get_participant_name(my_index) == localplayername_) {
+			return my_index;
+		}
+	}
+	// Not found, return error
+	return -1;
 }
 
 bool ParticipantList::get_participant_defeated(int16_t participant) const {
