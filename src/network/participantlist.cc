@@ -117,6 +117,36 @@ bool ParticipantList::needs_teamchat() const {
 		if (my_team == 0) {
 			// Team 0 is the "no team" entry
 			// TODO(Notabilis): Check whether we are a shared player
+			// Special case: There might be one or multiple humans using the same player slot,
+			// even when the player slot has no team.
+			// In that case, allow team messages to the other humans
+
+			// First pass: Find our index so we can get our player number
+			int16_t i = my_index;
+			uint8_t my_position = UserSettings::not_connected();
+			for (const UserSettings& u : settings_->users) {
+				if (u.position == UserSettings::not_connected()) {
+					continue;
+				}
+				if (i == 0) {
+					my_position = u.position;
+					break;
+				}
+				--i;
+			}
+			assert(my_position != UserSettings::not_connected());
+
+			// Second pass: Count humans with this player position
+			for (const UserSettings& u : settings_->users) {
+				if (u.position != my_position) {
+					continue;
+				}
+				if (found_someone) {
+					return true;
+				}
+				found_someone = true;
+			}
+			// We are all alone (in this game)
 			return false;
 		}
 		// Search for other players with the same team

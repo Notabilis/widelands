@@ -859,9 +859,6 @@ void GameHost::send(ChatMessage msg) {
 				recipients.insert(client_id);
 			}
 		} else {
-			// TODO(Notabilis): Team messages should also be possible if two humans share a player
-			// slot, even when that player is not part of a team. Change here and for dropdown
-
 			// Its a team message
 			msg_type = 2;
 			// Figure out who is in a team with the recipient and add them
@@ -914,8 +911,21 @@ if (d->clients.size() > static_cast<size_t>(msg.playern) && static_cast<long int
 
 				const Widelands::TeamNumber team_sender = d->settings.players[msg.playern].team;
 printf("is in team %u\n", team_sender);
-				// Team 0 is the "no team" option. If the sender has no team, there is no recipient
-				if (team_sender != 0) {
+				// Team 0 is the "no team" option.
+				// There might be multiple humans controlling that player, though
+				if (team_sender == 0) {
+					// Search for network clients that are using the player slot
+					for (uint32_t client = 0; client < d->clients.size(); ++client) {
+						if (d->clients.at(client).playernum == msg.playern) {
+							recipients.insert(client);
+						}
+					}
+					// Check if the host is using the same player slot
+					if (d->settings.playernum == msg.playern) {
+						recipients.insert(-2);
+					}
+				} else {
+					// Player has a team. Search for other human players with the same team
 					for (size_t i = 0; i < d->settings.players.size(); ++i) {
 	printf("  name=%s team=%i\n", d->settings.players[i].name.c_str(), d->settings.players[i].team);
 						// Ignore whether we are using this player: It might be a shared player
