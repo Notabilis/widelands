@@ -45,6 +45,10 @@ struct NoteDropdown {
 
 /// The narrow textual dropdown omits the extra push button.
 /// Use kPictorialMenu if you want to trigger an action without changing the menu button.
+/// kTextual: Text of selected entry and drop-down arrow
+/// kTextualNarrow: Text of selected entry
+/// kPictorial: Icon of the selected entry
+/// kPictorialMenu: Displays \c label when not enough space (?)
 enum class DropdownType { kTextual, kTextualNarrow, kPictorial, kPictorialMenu };
 
 /// Implementation for a dropdown menu that lets the user select a value.

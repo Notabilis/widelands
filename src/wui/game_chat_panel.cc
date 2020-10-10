@@ -74,24 +74,27 @@ GameChatPanel::GameChatPanel(UI::Panel* parent,
 	if (chat_.participants_ == nullptr) {
 		// No access to participant list. Hide the dropdown
 		recipient_dropdown_.set_visible(false);
+		// Increase the size of the edit box to fill the empty space
 		editbox.set_pos(Vector2i(editbox.get_x() - 28, editbox.get_y()));
 		editbox.set_size(editbox.get_w() + 28, editbox.get_h());
 		editbox.set_text(chat_.last_recipient_);
 	} else {
+		// When an entry has been selected, update the "@playername " in the edit field
 		recipient_dropdown_.selected.connect([this]() { set_recipient(); });
 		// React to keypresses for autocompletition
 		editbox.changed.connect([this]() { key_changed(); });
+		// Figure out whether the local player has teammates
 		update_has_team();
 		// Fill the dropdown menu with usernames
 		prepare_recipients();
 		// In the dropdown, select the entry that was used last time the menu was open
-		// If the recipient no longer exists, this will fail and @all will still be selected
+		// If the recipient no longer exists, this will fail and "@all" will still be selected
 		recipient_dropdown_.select(chat_.last_recipient_);
-		// Insert "@playername " into the edit field if the dropdown has a selection
+		// Insert "@playername " into the edit field if the dropdown currently has a selection
 		set_recipient();
 		update_signal_connection = chat_.participants_->participants_updated.connect([this]() {
+				// When the participants change, create new contents for dropdown
 				update_has_team();
-				// Create new contents for dropdown
 				prepare_recipients();
 				select_recipient();
 			});
@@ -157,39 +160,29 @@ void GameChatPanel::key_enter() {
 		int16_t n = chat_.participants_->get_participant_count();
 		printf("Player name: %s\n", chat_.participants_->get_local_playername().c_str());
 		printf("#participants: %i\n", n);
-		//if (chat_.participants_->is_ingame()) {
-			printf("#\tName\t\tType\tPing\tStatus\tColor\tTeam\n");
-			for (int16_t i = 0; i < n; ++i) {
-				if (chat_.participants_->get_participant_type(i)
-					== ParticipantList::ParticipantType::kSpectator) {
-					// It is a spectator, so there is not team, color or defeated-status
-					printf("%i.\t%s\t\tSpectator\t%u\n", i,
-						chat_.participants_->get_participant_name(i).c_str(),
-						chat_.participants_->get_participant_ping(i)
-						);
-				} else {
-					// It is a player, so all data should be available
-					printf("%i.\t%s\t\t%s\t%u\t%s\t%s\t%u\n", i,
-						chat_.participants_->get_participant_name(i).c_str(),
-						(chat_.participants_->get_participant_type(i)
-							== ParticipantList::ParticipantType::kPlayer ? "Player" : "AI"),
-						chat_.participants_->get_participant_ping(i),
-						(chat_.participants_->is_ingame() ?
-						(chat_.participants_->get_participant_defeated(i) ? "Defeated" : "Playing") : "NA"),
-						chat_.participants_->get_participant_color(i).hex_value().c_str(),
-						chat_.participants_->get_participant_team(i)
-						);
-				}
+		printf("#\tName\t\tType\tPing\tStatus\tColor\tTeam\n");
+		for (int16_t i = 0; i < n; ++i) {
+			if (chat_.participants_->get_participant_type(i)
+				== ParticipantList::ParticipantType::kSpectator) {
+				// It is a spectator, so there is not team, color or defeated-status
+				printf("%i.\t%s\t\tSpectator\t%u\n", i,
+					chat_.participants_->get_participant_name(i).c_str(),
+					chat_.participants_->get_participant_ping(i)
+					);
+			} else {
+				// It is a player, so all data should be available
+				printf("%i.\t%s\t\t%s\t%u\t%s\t%s\t%u\n", i,
+					chat_.participants_->get_participant_name(i).c_str(),
+					(chat_.participants_->get_participant_type(i)
+						== ParticipantList::ParticipantType::kPlayer ? "Player" : "AI"),
+					chat_.participants_->get_participant_ping(i),
+					(chat_.participants_->is_ingame() ?
+					(chat_.participants_->get_participant_defeated(i) ? "Defeated" : "Playing") : "NA"),
+					chat_.participants_->get_participant_color(i).hex_value().c_str(),
+					chat_.participants_->get_participant_team(i)
+					);
 			}
-		/*} else {
-			printf("#\tName\tTeam\n");
-			for (int16_t i = 0; i < n; ++i) {
-				printf("%i.\t%s\t%i\n", i, chat_.participants_->get_participant_name(i).c_str(),
-						(chat_.participants_->get_participant_type(i)
-							== ParticipantList::ParticipantType::kSpectator
-							? -1 : chat_.participants_->get_participant_team(i)));
-			}
-		}*/
+		}
 	}
 
 	const std::string& str = editbox.text();
@@ -200,6 +193,7 @@ void GameChatPanel::key_enter() {
 			std::string recipient;
 			// Reset message to only the recipient
 			if (str[0] == '@') {
+				// When pos+1 is greater than the string length, the whole string is returned
 				recipient = str.substr(0, pos_first_space + 1);
 			}
 
@@ -218,10 +212,12 @@ void GameChatPanel::key_enter() {
 				recipient_dropdown_.set_errored(_("Unknown Recipient"));
 			}
 		} else {
+			// We don't have access to the player list, so just send the message
 			chat_.send(str);
 			editbox.set_text("");
 		}
 	}
+	// Trigger signal that a message was sent
 	sent();
 }
 
@@ -229,13 +225,18 @@ void GameChatPanel::key_escape() {
 	editbox.set_text("");
 	// Re-set the current selection to clean up a possible error state
 	if (chat_.participants_ != nullptr) {
-		//recipient_dropdown_.select(recipient_dropdown_.get_selected());
 		recipient_dropdown_.select(chat_.last_recipient_);
 		set_recipient();
 	}
+	// Trigger the signal that writing was aborted
 	aborted();
 }
 
+/**
+ * Try autocompletition of player names.
+ * If the last two chars of the input are space, try to autocomplete the last word to a player name.
+ * E.g., if input is "pl  " complete to "playername " if the start of the name is unique
+ */
 void GameChatPanel::key_changed() {
 
 	if (chat_.participants_ == nullptr) {
@@ -248,15 +249,12 @@ void GameChatPanel::key_changed() {
 	// Try to select the matching dropdown state
 	select_recipient();
 
-	// If the last two chars of the input are space, try to autocomplete the last word to a player name
-	// E.g., if input is "pl  " complete to "playername " if the start of the name is unique
-
-	if (str.size() < 3 || str[str.size() - 1] != ' ' || str[str.size() - 2] != ' ') {
+	if (str.size() < 3 || *(str.rbegin()) != ' ' || str[str.size() - 2] != ' ') {
 		return;
 	}
 
 	// Extract the name to complete
-	// find_last_of finds starts at the given pos and goes forward until it finds space or @
+	// find_last_of starts at the given pos and goes forward until it finds space or @
 	// -3 so we don't start searching in the double space chars at the end
 	size_t namepart_pos = str.find_last_of(" @", str.size() - 3);
 printf("namepart_pos1=%lu\n", namepart_pos);
@@ -264,8 +262,8 @@ printf("namepart_pos1=%lu\n", namepart_pos);
 		// Not found, meaning the input only contains the name
 		namepart_pos = 0;
 	} else {
-		// Found something. Cut off the space / @
-		namepart_pos += 1;
+		// Found something. Cut off the space or @
+		++namepart_pos;
 	}
 	// Extract part, also remove trailing spaces
 	const std::string namepart = str.substr(namepart_pos, str.size() - 2 - namepart_pos);
@@ -291,9 +289,9 @@ printf("namepart=%s\n", namepart.c_str());
 
 	// Helper function: Compare the given names and extract a common prefix (if existing)
 	static const auto compare_names = [&namepart, &candidate] (const std::string& name) {
-		size_t equal_chars = count_equal_chars(namepart, name);
 printf("name=%s count=%lu\n", namepart.c_str(), equal_chars);
-		if (equal_chars == namepart.size()) {
+		size_t n_equal_chars = count_equal_chars(namepart, name);
+		if (n_equal_chars == namepart.size()) {
 			// We have a candidate!
 printf("MAtch!\n");
 			// Check if we already have a candidate. If not, use this one
@@ -303,9 +301,9 @@ printf("old_candidate=%s\n", candidate.c_str());
 				candidate = name + " ";
 			} else {
 				// We already have one. Create an new candidate that is the combination of the two
-				equal_chars = count_equal_chars(candidate, name);
+				n_equal_chars = count_equal_chars(candidate, name);
 				// No space appended here since the name is not complete yet
-				candidate = candidate.substr(0, equal_chars);
+				candidate = candidate.substr(0, n_equal_chars);
 			}
 printf("new_candidate=%s\n", candidate.c_str());
 		}
@@ -346,11 +344,13 @@ printf("str=%s\n", str.c_str());
 	}
 }
 
-// Set the recipient in the input box to whatever is selected in the dropdown
+/**
+ * Set the recipient in the input box to whatever is selected in the dropdown
+ */
 void GameChatPanel::set_recipient() {
 	assert(chat_.participants_ != nullptr);
 	assert(recipient_dropdown_.has_selection());
-	// Something has been selected. Re-focus the input box
+
 	// Replace the old recipient, if any
 
 	const std::string& recipient = recipient_dropdown_.get_selected();
@@ -366,27 +366,31 @@ void GameChatPanel::set_recipient() {
 			str = recipient;
 		} else {
 			// There is some message, so replace the old with the new (possibly empty) recipient
+			// The separating space is already in recipient (see prepare_recipients())
 			str.replace(0, pos_first_space + 1, recipient);
 		}
 	} else {
 		// No recipient yet, prepend it
-		// The separating space is already in recipient (see prepare_recipients())
 		str = recipient + str;
 	}
 
 	// Set the updated string
 	editbox.set_text(str);
+	// Something has been selected. Re-focus the input box
 	editbox.focus();
 }
 
+/**
+ * Prepare the entries for chat recipients in the dropdown box
+ */
 void GameChatPanel::prepare_recipients() {
 	assert(chat_.participants_ != nullptr);
 
-	printf("Updating recipient drowndown\n");
+printf("Updating recipient drowndown\n");
 	recipient_dropdown_.clear();
 	recipient_dropdown_.add(_("All"), "",
 		g_gr->images().get("images/wui/menus/toggle_minimap.png"));
-	// Select the "All" entry by default. Do *not* use the add() parameter for it since
+	// Select the "All" entry by default. Do *not* use the add() parameter for selecting it since
 	// it calls the listener for selected()
 	recipient_dropdown_.select("");
 	if (has_team_) {
@@ -420,8 +424,10 @@ void GameChatPanel::prepare_recipients() {
 	}
 }
 
-// Tries to select the recipient entered in the input field in the dropdown
-// Sets errored-state otherwise. Returns whether recipient could be selected
+/**
+ * Tries to select the recipient entered in the input field in the dropdown
+ * Sets errored-state otherwise. Returns whether recipient could be selected
+ */
 bool GameChatPanel::select_recipient() {
 	// Get the current recipient
 	std::string recipient = "";
@@ -447,9 +453,11 @@ bool GameChatPanel::select_recipient() {
 	return true;
 }
 
+/**
+ * Figure out whether the local player has team members
+ */
 void GameChatPanel::update_has_team() {
-	// Figure out whether we have team members
-	int16_t index = 0;
+	int16_t my_index = 0;
 	const int16_t participant_count = chat_.participants_->get_participant_count();
 	assert(participant_count >= 0);
 	if (participant_count <= 1) {
@@ -461,20 +469,21 @@ void GameChatPanel::update_has_team() {
 	const std::string& local_name = chat_.participants_->get_local_playername();
 	assert(!local_name.empty());
 	// Find our player index
-	for (; index < participant_count; ++index) {
-		if (chat_.participants_->get_participant_name(index) == local_name) {
+	for (; my_index < participant_count; ++my_index) {
+		if (chat_.participants_->get_participant_name(my_index) == local_name) {
 			break;
 		}
 	}
-	if (index >= participant_count) {
+	if (my_index >= participant_count) {
 		// Shouldn't happen normally. Most likely we just connected as a client
-		// and don't know about the users (including ourselves) yet
+		// and don't know about the users (including ourselves) yet.
+		// But we know about the AIs, so the previous check didn't triggered
 		has_team_ = false;
 		return;
 	}
-	assert(index < participant_count);
+
 	// Check whether we are a player or a spectator
-	if (chat_.participants_->get_participant_type(index)
+	if (chat_.participants_->get_participant_type(my_index)
 			== ParticipantList::ParticipantType::kSpectator) {
 		// We are a spectator. Check if there are other spectators
 		int16_t n_spectators = 0;
@@ -488,8 +497,8 @@ void GameChatPanel::update_has_team() {
 		has_team_ = n_spectators > 1;
 	} else {
 		// We are a player. Get our team
-		const Widelands::TeamNumber team = chat_.participants_->get_participant_team(index);
-		if (team == 0) {
+		const Widelands::TeamNumber my_team = chat_.participants_->get_participant_team(my_index);
+		if (my_team == 0) {
 			// Team 0 is the "no team" entry
 			has_team_ = false;
 			return;
@@ -503,7 +512,7 @@ void GameChatPanel::update_has_team() {
 				// Also skip spectators, they have no team
 				continue;
 			}
-			if (chat_.participants_->get_participant_team(i) == team) {
+			if (chat_.participants_->get_participant_team(i) == my_team) {
 				++n_teammembers;
 			}
 		}
