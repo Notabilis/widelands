@@ -157,11 +157,11 @@ void GameChatPanel::key_enter() {
 
 	// TODO(Notabilis): Remove this block
 	if (chat_.participants_ != nullptr) {
-		int16_t n = chat_.participants_->get_participant_count();
+		const int16_t* n = chat_.participants_->get_participant_counts();
 		printf("Player name: %s\n", chat_.participants_->get_local_playername().c_str());
-		printf("#participants: %i\n", n);
+		printf("#participants: %i\n", n[2]);
 		printf("#\tName\t\tType\tPing\tStatus\tColor\tTeam\n");
-		for (int16_t i = 0; i < n; ++i) {
+		for (int16_t i = 0; i < n[2]; ++i) {
 			if (chat_.participants_->get_participant_type(i)
 				== ParticipantList::ParticipantType::kSpectator) {
 				// It is a spectator, so there is not team, color or defeated-status
@@ -314,13 +314,10 @@ printf("new_candidate=%s\n", candidate.c_str());
 	// If there already is a candidate, create a new candidate from the part that is
 	// the same for both candidates. (Note that the merged candidate might have wrong case,
 	// but that is fixed on the next completition)
-	const int16_t n_participants = chat_.participants_->get_participant_count();
+	const int16_t n_humans = chat_.participants_->get_participant_counts()[0];
 	const std::string& local_name = chat_.participants_->get_local_playername();
-	for (int16_t i = 0; i < n_participants; ++i) {
-		if (chat_.participants_->get_participant_type(i) == ParticipantList::ParticipantType::kAI) {
-			// Skip AIs
-			continue;
-		}
+	for (int16_t i = 0; i < n_humans; ++i) {
+		assert (chat_.participants_->get_participant_type(i) != ParticipantList::ParticipantType::kAI);
 		const std::string& name = chat_.participants_->get_participant_name(i);
 		if (namepart_pos == 1 && str[0] == '@' && name == local_name) {
 			// Don't autocomplete to our own username when searching for a recipient
@@ -399,14 +396,11 @@ printf("Updating recipient drowndown\n");
 	}
 
 	// Iterate over all human players (except ourselves) and add their names
-	const int16_t n_participants = chat_.participants_->get_participant_count();
+	const int16_t n_humans = chat_.participants_->get_participant_counts()[0];
 	const std::string& local_name = chat_.participants_->get_local_playername();
 
-	for (int16_t i = 0; i < n_participants; ++i) {
-		if (chat_.participants_->get_participant_type(i) == ParticipantList::ParticipantType::kAI) {
-			// Skip AIs
-			continue;
-		}
+	for (int16_t i = 0; i < n_humans; ++i) {
+		assert(chat_.participants_->get_participant_type(i) != ParticipantList::ParticipantType::kAI);
 		const std::string& name = chat_.participants_->get_participant_name(i);
 		if (name == local_name) {
 			continue;
@@ -458,9 +452,9 @@ bool GameChatPanel::select_recipient() {
  */
 void GameChatPanel::update_has_team() {
 	int16_t my_index = 0;
-	const int16_t participant_count = chat_.participants_->get_participant_count();
-	assert(participant_count >= 0);
-	if (participant_count <= 1) {
+	const int16_t human_count = chat_.participants_->get_participant_counts()[0];
+	assert(human_count >= 0);
+	if (human_count <= 1) {
 		// If 0: We have just connected and don't know anything about the users yet
 		// If 1: We are the only participant, so there can't be any teams
 		has_team_ = false;
@@ -469,12 +463,13 @@ void GameChatPanel::update_has_team() {
 	const std::string& local_name = chat_.participants_->get_local_playername();
 	assert(!local_name.empty());
 	// Find our player index
-	for (; my_index < participant_count; ++my_index) {
+	for (; my_index < human_count; ++my_index) {
 		if (chat_.participants_->get_participant_name(my_index) == local_name) {
 			break;
 		}
 	}
-	if (my_index >= participant_count) {
+	assert(my_index < human_count);
+	if (my_index >= human_count) {
 		// Shouldn't happen normally. Most likely we just connected as a client
 		// and don't know about the users (including ourselves) yet.
 		// But we know about the AIs, so the previous check didn't triggered
@@ -487,7 +482,7 @@ void GameChatPanel::update_has_team() {
 			== ParticipantList::ParticipantType::kSpectator) {
 		// We are a spectator. Check if there are other spectators
 		int16_t n_spectators = 0;
-		for (int16_t i = 0; i < participant_count; ++i) {
+		for (int16_t i = 0; i < human_count; ++i) {
 			if (chat_.participants_->get_participant_type(i)
 					== ParticipantList::ParticipantType::kSpectator) {
 				++n_spectators;
@@ -505,11 +500,10 @@ void GameChatPanel::update_has_team() {
 		}
 		// Search for other players with the same team
 		int16_t n_teammembers = 0;
-		for (int16_t i = 0; i < participant_count; ++i) {
+		for (int16_t i = 0; i < human_count; ++i) {
 			if (chat_.participants_->get_participant_type(i)
 					!= ParticipantList::ParticipantType::kPlayer) {
-				// Skip AIs. They won't answer anyway :(
-				// Also skip spectators, they have no team
+				// Skip spectators, they are no player team
 				continue;
 			}
 			if (chat_.participants_->get_participant_team(i) == my_team) {

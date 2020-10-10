@@ -40,7 +40,8 @@
 /// will ensure
 /// that only one instance is running at time.
 InternetGaming::InternetGaming()
-/// TODO: Add support for ParticipantList and set it in the ChatProvider
+	// TODO(Notabilis): Maybe add support for ParticipantList and set it in the ChatProvider
+	// Idea: Autocomplete the names of the users when in the internet lobby
    : net(nullptr),
      state_(OFFLINE),
      reg_(false),
@@ -1054,6 +1055,6 @@ bool InternetGaming::valid_username(const std::string& username) {
 	// Note: The memory for the lowercase version must be allocated before calling transform()
 	std::string lowercase = username;
 	std::transform(lowercase.begin(), lowercase.end(), lowercase.begin(),
-		[](unsigned char c){ return std::tolower(c); });
+		[](unsigned char c) { return std::tolower(c); } );
 	return lowercase != "team";
 }

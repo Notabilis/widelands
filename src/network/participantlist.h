@@ -45,6 +45,8 @@ namespace Widelands {
  *       If a player slot is closed, it will not show up here.
  * @note The \c participant indices used by this class are not compatible to other indices,
  *       e.g., in GameSettings::players.
+ * When passing a \c participant index, the results are ordered: First all human participants
+ * are returned, then the AIs.
  */
 class ParticipantList {
 
@@ -78,10 +80,11 @@ public:
 
 	/**
 	 * Returns the number of currently connected participants.
-	 * Return value - 1 is the highest permitted participant number for the other methods.
-	 * @return The number of connected participants.
+	 * Return value [2] - 1 is the highest permitted participant number for the other methods.
+	 * @return An pointer to an array with 3 elements containing the numbers of connected
+	 *         participants for humans, AIs, and a total.
 	 */
-	int16_t get_participant_count() const;
+	const int16_t* get_participant_counts() const;
 
 	/**
 	 * Returns the type of participant.
@@ -192,14 +195,8 @@ private:
 	Widelands::Game*& game_;
 	/// A reference to the user name of the human on this computer.
 	const std::string& localplayername_;
-	/// The highest participant number that represents a human user.
-	/// Higher numbers represent AIs
-	mutable int16_t human_user_count_;
-#ifndef NDEBUG
-	/// The number of participants found in the last call to get_participant_count().
-	/// Used to speed up the asserts.
-	mutable int16_t participant_count_;
-#endif // NDEBUG
+	/// Counts of participants: humans, AIs, total
+	mutable int16_t participant_counts_[3];
 };
 
 #endif // WL_NETWORK_PARTICIPANTLIST_H
