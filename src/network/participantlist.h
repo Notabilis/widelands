@@ -39,14 +39,19 @@ namespace Widelands {
 
 /**
  * Class interface to provide access to the lists of network game participants to the UI.
- * @note This is a list of participants, not of players. Defeated players and spectators are
- *       also handled by this, as well as AIs. The players are indirectly present since each
- *      player is always controlled by a human user or an AI.
- *       If a player slot is closed, it will not show up here.
- * @note The \c participant indices used by this class are not compatible to other indices,
- *       e.g., in GameSettings::players.
+ * This is a list of participants, not of players. Defeated players and spectators are
+ * also handled by this, as well as AIs. The players are indirectly present since each
+ * player is always controlled by a human user or an AI.
+ * If a player slot is closed, it will not show up here.
+ *
  * When passing a \c participant index, the results are ordered: First all human participants
  * are returned, then the AIs.
+ * The \c participant indices used by this class are not compatible to other indices,
+ * e.g., in GameSettings::players.
+ *
+ * @note The signal \c participants_updated *must* be triggered by the game if the there are
+ *       changes with the participants (e.g., client connects, tribe is selected, ...).
+ *       The count of active participants is cached and only recalculated on signal.
  */
 class ParticipantList {
 
@@ -210,6 +215,11 @@ private:
 	 */
 	const Widelands::Player* participant_to_player(int16_t participant) const;
 
+	/**
+	 * Update \c participant_counts_ based on the game state in \c settings.
+	 */
+	void update_participant_counts();
+
 	/// A reference to the settings of the current game (running or being prepared).
 	const GameSettings* settings_;
 	/// A reference to the pointer of a currently runnning game.
@@ -217,7 +227,7 @@ private:
 	/// A reference to the user name of the human on this computer.
 	const std::string& localplayername_;
 	/// Counts of participants: humans, AIs, total
-	mutable int16_t participant_counts_[3];
+	int16_t participant_counts_[3];
 };
 
 #endif // WL_NETWORK_PARTICIPANTLIST_H

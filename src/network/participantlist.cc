@@ -12,32 +12,18 @@ ParticipantList::ParticipantList(const GameSettings* settings, Widelands::Game*&
 				participant_counts_{-1} {
 	assert(settings_ != nullptr);
 	// The pointer referenced by game_ might be undefined here
+	// localplayername_ might be empty here
+	update_participant_counts();
+
+	// Wait for the update signal to be called, then re-calculate the participant counts
+	participants_updated.connect([this]() {
+			update_participant_counts();
+		}, boost::signals2::connect_position::at_front);
 }
 
 const int16_t* ParticipantList::get_participant_counts() const {
 printf("get_participant_counts()\n");
-	// Number of connected humans
-	participant_counts_[0] = 0;
-	for (const UserSettings& u : settings_->users) {
-printf("get_count() name=%s\n", u.name.c_str());
-		// settings_->users might contain disconnected humans, filter them out
-		if (u.position != UserSettings::not_connected()) {
-printf("get_count() using\n");
-			++participant_counts_[0];
-		}
-else printf("get_count() not using\n");
-	}
-	participant_counts_[1] = 0;
-	for (size_t i = 0; i < settings_->players.size(); ++i) {
-		const PlayerSettings& player = settings_->players[i];
-		if (player.state != PlayerSettings::State::kComputer) {
-			// Ignore open, shared or human player slots
-			continue;
-		}
-		++participant_counts_[1];
-	}
-	assert(participant_counts_[0] <= static_cast<int16_t>(settings_->users.size()));
-	participant_counts_[2] = participant_counts_[0] + participant_counts_[1];
+	assert(participant_counts_[0] != -1);
 	return participant_counts_;
 }
 
@@ -86,8 +72,8 @@ const std::string& ParticipantList::get_participant_name(int16_t participant) co
 
 
 bool ParticipantList::needs_teamchat() const {
+	assert(participant_counts_[0] >= 0);
 	if (participant_counts_[0] <= 1) {
-		// If <0: Not initialized yet
 		// If 0: We have just connected and don't know anything about the users yet
 		// If 1: We are the only participant, so there can't be any teams
 		return false;
@@ -264,4 +250,28 @@ const Widelands::Player* ParticipantList::participant_to_player(int16_t particip
 	const Widelands::Player *p = pm->get_player(playerindex + 1);
 	assert(p);
 	return p;
+}
+
+void ParticipantList::update_participant_counts() {
+
+	// Number of connected humans
+	participant_counts_[0] = 0;
+	for (const UserSettings& u : settings_->users) {
+		// settings_->users might contain disconnected humans, filter them out
+		if (u.position != UserSettings::not_connected()) {
+			++participant_counts_[0];
+		}
+	}
+	participant_counts_[1] = 0;
+	for (size_t i = 0; i < settings_->players.size(); ++i) {
+		const PlayerSettings& player = settings_->players[i];
+		if (player.state != PlayerSettings::State::kComputer) {
+			// Ignore open, shared or human player slots
+			continue;
+		}
+		++participant_counts_[1];
+	}
+
+	assert(participant_counts_[0] <= static_cast<int16_t>(settings_->users.size()));
+	participant_counts_[2] = participant_counts_[0] + participant_counts_[1];
 }
