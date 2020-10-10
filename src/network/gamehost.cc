@@ -859,6 +859,9 @@ void GameHost::send(ChatMessage msg) {
 				recipients.insert(client_id);
 			}
 		} else {
+			// TODO(Notabilis): Team messages should also be possible if two humans share a player
+			// slot, even when that player is not part of a team. Change here and for dropdown
+
 			// Its a team message
 			msg_type = 2;
 			// Figure out who is in a team with the recipient and add them
@@ -915,10 +918,8 @@ printf("is in team %u\n", team_sender);
 				if (team_sender != 0) {
 					for (size_t i = 0; i < d->settings.players.size(); ++i) {
 	printf("  name=%s team=%i\n", d->settings.players[i].name.c_str(), d->settings.players[i].team);
-						if (static_cast<int16_t>(i) == msg.playern) {
-							// Don't send to ourselves
-							continue;
-						}
+						// Ignore whether we are using this player: It might be a shared player
+						// The set<> will filter out duplicated receivers anyway
 						const PlayerSettings& player = d->settings.players[i];
 	/// The .name of the player is something strange and there might be multiple humans for one PlayerSettings (not sure)
 	printf("checking _%s_\n", player.name.c_str());
@@ -950,7 +951,6 @@ printf("is in team %u\n", team_sender);
 					}
 				} // end team is not "no team"
 			} // end team is not spectator
-/// TODO(Notabilis): Disallow the playername "team"
 		} // end team message
 	} // end directed message
 
