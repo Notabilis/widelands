@@ -82,6 +82,14 @@ bool ParticipantList::needs_teamchat() const {
 	const int16_t my_index = get_local_playerindex();
 	assert(my_index >= 0);
 	assert(my_index < participant_counts_[0]);
+	if (my_index >= participant_counts_[0]) {
+			/// NOCOM: Remove if-clause if asserts hold
+NEVER_HERE();
+		// Shouldn't happen normally. Most likely we just connected as a client
+		// and don't know about the users (including ourselves) yet.
+		// But we know about the AIs, so the previous check didn't triggered
+		return false;
+	}
 
 	// Check whether we are a player or a spectator
 	bool found_someone = false;
@@ -182,6 +190,8 @@ const RGBColor& ParticipantList::get_participant_color(int16_t participant) cons
 bool ParticipantList::is_ingame() const {
 	return (game_ != nullptr);
 }
+
+// TODO(Notabilis): (unrelated) Bug: Changing anything in the multiplayer lobby resets the "shared-in" setting
 
 uint8_t ParticipantList::get_participant_ping(int16_t participant) const {
 	assert(participant < participant_counts_[2]);
